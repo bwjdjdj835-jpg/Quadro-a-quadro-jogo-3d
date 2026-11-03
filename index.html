@@ -80,6 +80,13 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .frame input[type=text]{font-size:13px;padding:5px 7px}
 .chk{display:flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer}
 .empty{border:1px dashed var(--line);padding:22px;text-align:center;color:var(--muted)}
+.blocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.block{border:1px solid var(--line);background:var(--bg);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.block h3{margin:0;font-family:var(--display);font-weight:600;font-size:19px;letter-spacing:.02em;text-transform:uppercase;display:flex;gap:8px;align-items:baseline}
+.block h3 .n{font-family:var(--mono);font-size:12px;color:var(--accent)}
+.block textarea,#gp textarea{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--panel);border:1px solid var(--line);padding:7px 9px;min-height:74px;resize:vertical}
+pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--panel);border:1px dashed var(--line);padding:10px;margin:0;max-height:260px;overflow:auto}
+.outs{display:flex;flex-direction:column;gap:12px}
 .viewer{position:fixed;inset:0;background:rgba(10,9,8,.92);z-index:50;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .viewer img{max-width:100%;max-height:78vh;object-fit:contain}
@@ -162,7 +169,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     </div>
     <div class="row">
       <label class="label" for="bulkLabel">Nome do lugar para as marcadas</label>
-      <input type="text" id="bulkLabel" placeholder="Ex.: Igreja Matriz, Avenida principal, Prefeitura" style="max-width:340px">
+      <input type="text" id="bulkLabel" list="bkNames" placeholder="Ex.: Avenida principal, Praça central" style="max-width:340px"><datalist id="bkNames"></datalist>
       <button class="btn sm" id="applyLabel">Aplicar</button>
     </div>
     <div id="sheet" class="sheet"><div class="empty">Os quadros aparecem aqui. Abra um vídeo e clique em "Extrair quadros", ou use "Capturar este quadro" enquanto assiste.</div></div>
@@ -185,6 +192,23 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
       <ul class="tips" id="tips"></ul>
     </section>
   </div>
+
+  <section class="step" aria-labelledby="h6s" id="gp">
+    <div class="toolbar">
+      <h2 id="h6s"><span class="n">05</span>Blocos quadrados (8 módulos)</h2>
+      <span class="meta" id="bkInfo"></span>
+    </div>
+    <p class="note">Cada bloco é um quadrado do mapa da cidade. Dê às fotos o mesmo nome do bloco (no passo 03) para elas virarem referência dele. Os prompts saem em inglês, que os geradores entendem melhor.</p>
+    <div class="fields">
+      <div class="field"><label class="label" for="bkCity">Cidade</label><input type="text" id="bkCity" value="Ministro Andreazza, Rondônia, Brasil"></div>
+      <div class="field"><label class="label" for="bkSize">Tamanho de cada bloco</label><select id="bkSize"><option value="100">100 m × 100 m</option><option value="250" selected>250 m × 250 m</option><option value="500">500 m × 500 m</option><option value="1000">1 km × 1 km</option></select></div>
+      <div class="field"><label class="label" for="bkStyle">Estilo</label><select id="bkStyle"><option value="realistic">Realista (diorama)</option><option value="lowpoly">Jogo low-poly</option></select></div>
+      <div class="field"><label class="label" for="bkSeason">Época</label><select id="bkSeason"><option value="dry">Seca (poeira, sol forte)</option><option value="wet">Chuva (verde, barro)</option></select></div>
+    </div>
+    <div class="blocks" id="blocks"></div>
+    <div class="row"><button class="btn pri" id="bkGen">Gerar os prompts</button><button class="btn" id="bkSave" disabled>Baixar prompts (.txt)</button><span class="meta" id="bkSt"></span></div>
+    <div class="outs" id="bkOut"></div>
+  </section>
 </div>
 
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Quadro ampliado">
@@ -396,7 +420,7 @@ function autoSelect(){ const m = parseInt($("#minSharp").value); frames.forEach(
 $("#motoOn").addEventListener("change",()=>{ scoreAll(); autoSelect(); render(); });
 $("#cropB").addEventListener("input",()=>{ scoreAll(); render(); });
 function render(){
-  const box = $("#sheet"); box.replaceChildren();
+  const box = $("#sheet"); box.replaceChildren(); typeof countRefs==="function" && countRefs();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
   $("#zip").disabled = !nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
@@ -419,11 +443,11 @@ function render(){
     cb.addEventListener("change",()=>{ f.sel=cb.checked; card.classList.toggle("sel",f.sel); updateCounts(); });
     chk.append(cb, document.createTextNode("Usar esta"));
     const lab = document.createElement("input"); lab.type="text"; lab.placeholder="Nome do lugar"; lab.value=f.label; lab.id="lb"+f.id; lab.setAttribute("aria-label",`Nome do lugar do quadro ${fmt(f.t)}`);
-    lab.addEventListener("input",()=>{ f.label = lab.value; });
+    lab.addEventListener("input",()=>{ f.label = lab.value; countRefs(); });
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ typeof countRefs==="function" && countRefs(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -471,6 +495,7 @@ $("#zip").addEventListener("click", async () => {
     });
     zip.file("LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+
       `\n\nFoto -> 3D (Hunyuan3D / TRELLIS / Tripo): envie 1 foto por prédio, a mais nítida.\nFotogrametria (RealityScan / Polycam): envie todas as fotos da mesma pasta juntas.\n`);
+    if(lastPromptsTxt) zip.file("PROMPTS-BLOCOS.txt", lastPromptsTxt);
     const blob = await zip.generateAsync({ type:"blob", compression:"STORE" }, m => show(st,`Montando o ZIP… ${Math.round(m.percent)}%`));
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${prefix}_quadros.zip`;
     document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
@@ -488,6 +513,107 @@ function status(msg,kind){ show($("#st"),msg,kind); }
 
 let saved = "foto3d"; try{ saved = localStorage.getItem("preset") || "foto3d"; }catch{}
 applyPreset(PRESETS[saved] ? saved : "foto3d");
+
+/* ---------- 05 blocos quadrados ---------- */
+const BLOCKS = [
+  { name:"Entrada de terra", road:"dirt-ew", desc:"Red dirt road entering town, simple single-story houses (one yellow house with a low wall), dry grass, scattered trees, wooden fences and utility poles." },
+  { name:"Avenida principal", road:"avenue-ew", desc:"Wide paved main avenue with a central median of green grass and big shade trees with white-painted trunks, yellow dashed lines, curbs, motorcycles and pickups." },
+  { name:"Rua do comércio", road:"street-ew", desc:"Commercial street with one- and two-story shops with flat painted facades (white, light blue, orange, cream), metal awnings, roll-up doors, small signs, cars parked at the curb." },
+  { name:"Praça central", road:"cross", desc:"Town square with green lawn, shade trees, a colorful children's playground, concrete benches and interlocking paver sidewalks, surrounded by streets." },
+  { name:"Prédios públicos", road:"street-ns", desc:"White and blue public buildings with arched windows and a small antenna tower, a health post with a covered garage of ambulances, fenced yard with red soil." },
+  { name:"Estacionamento e posto", road:"avenue-ew", desc:"Large interlocking-paver parking lot full of white and dark pickup trucks, a gas station / bus stop with a metal canopy, two-story buildings behind." },
+  { name:"Bairro residencial", road:"cross", desc:"Residential blocks of simple single-story houses with small yards, walls and gates, fruit trees, palm trees, narrow paved streets turning into dirt." },
+  { name:"Borda da cidade", road:"dirt-ns", desc:"Edge of town: pasture with barbed-wire fences, a red dirt road, a small river with a wooden bridge, and dense Amazon forest at the back." },
+];
+const ROADS = {
+  "dirt-ew":  ["Estrada de terra leste–oeste", "a red dirt road crossing from the exact center of the west edge to the exact center of the east edge"],
+  "dirt-ns":  ["Estrada de terra norte–sul", "a red dirt road crossing from the exact center of the north edge to the exact center of the south edge"],
+  "avenue-ew":["Avenida leste–oeste", "the main paved avenue crossing from the exact center of the west edge to the exact center of the east edge"],
+  "street-ew":["Rua asfaltada leste–oeste", "a paved street crossing from the exact center of the west edge to the exact center of the east edge"],
+  "street-ns":["Rua asfaltada norte–sul", "a paved street crossing from the exact center of the north edge to the exact center of the south edge"],
+  "cross":    ["Cruzamento (4 lados)", "two paved streets crossing at the center, each one leaving at the exact center of all four edges"],
+  "none":     ["Sem estrada", "no road reaching the edges"],
+};
+function renderBlocks(){
+  const box=$("#blocks"); box.replaceChildren();
+  BLOCKS.forEach((b,i)=>{
+    const card=document.createElement("div"); card.className="block";
+    const h=document.createElement("h3"); const n=document.createElement("span"); n.className="n"; n.textContent=String(i+1).padStart(2,"0"); h.append(n, document.createTextNode(" "));
+    const nm=document.createElement("input"); nm.type="text"; nm.value=b.name; nm.id="bkn"+i; nm.setAttribute("aria-label",`Nome do bloco ${i+1}`); nm.addEventListener("input",()=>{ b.name=nm.value; countRefs(); });
+    const sel=document.createElement("select"); sel.id="bkr"+i; sel.setAttribute("aria-label",`Estradas nas bordas do bloco ${i+1}`);
+    Object.entries(ROADS).forEach(([k,[pt]])=>{ const o=document.createElement("option"); o.value=k; o.textContent=pt; if(k===b.road) o.selected=true; sel.append(o); });
+    sel.addEventListener("change",()=>{ b.road=sel.value; });
+    const ta=document.createElement("textarea"); ta.id="bkd"+i; ta.value=b.desc; ta.setAttribute("aria-label",`O que tem no bloco ${i+1}`); ta.addEventListener("input",()=>{ b.desc=ta.value; });
+    const rc=document.createElement("span"); rc.className="meta"; rc.id="bkc"+i;
+    const lbl=(t,f)=>{ const l=document.createElement("label"); l.className="label"; l.htmlFor=f; l.textContent=t; return l; };
+    card.append(h, lbl("Nome (use o mesmo nas fotos)","bkn"+i), nm, lbl("Estradas nas bordas","bkr"+i), sel, lbl("O que tem no bloco (em inglês)","bkd"+i), ta, rc);
+    box.append(card);
+  });
+  countRefs();
+}
+function refsOf(b){ const k=slug(b.name); return frames.filter(f=>f.sel && slug(f.label)===k); }
+function countRefs(){ BLOCKS.forEach((b,i)=>{ const el=$("#bkc"+i); if(el){ const n=refsOf(b).length; el.textContent = n ? `${n} foto(s) de referência` : "Nenhuma foto com esse nome ainda"; } }); }
+function sizeTxt(){ const v=parseInt($("#bkSize").value); return v>=1000 ? "1 km x 1 km" : `${v} m x ${v} m`; }
+function styleTxt(){ return $("#bkStyle").value==="lowpoly"
+  ? "Style: clean low-poly 3D game asset, flat colors with soft shading, readable shapes."
+  : "Style: realistic miniature city diorama, detailed textures, photographic lighting, game-ready map tile."; }
+function seasonTxt(){ return $("#bkSeason").value==="wet"
+  ? "Rainy season: lush green vegetation, wet red mud on dirt roads, puddles, overcast soft light."
+  : "Dry season: bright midday sun, light dusty haze, dry grass, red dust on the roads."; }
+function blockPrompt(b,i){
+  const refs=refsOf(b);
+  return [
+    `Square isometric 3D terrain block (module ${i+1} of 8) of the small Amazon-interior town of ${$("#bkCity").value}, representing ${sizeTxt()}, seen from above at a 45-degree isometric angle.`,
+    `The tile is a perfect square with straight vertical sides showing layers of red earth (terra vermelha) soil; flat ground level at the edges so it connects seamlessly to the other blocks.`,
+    `Contents: ${b.desc}`,
+    `Road connections: ${ROADS[b.road][1]}, so neighbouring blocks line up.`,
+    `Typical of the region: simple Brazilian interior architecture, utility poles with power lines, motorcycles and pickup trucks, tropical trees.`,
+    seasonTxt(), styleTxt(),
+    refs.length ? `Use the ${refs.length} attached reference photo(s) of this place for building shapes, colors and materials.` : "",
+    "Plain light background around the tile, no text, no labels."
+  ].filter(Boolean).join("\n");
+}
+const NEG = "skyscrapers, tall towers, European architecture, snow, beach, ocean, text, labels, watermark, blurry, cartoon, distorted perspective, tile with uneven edges, cropped tile";
+function sheetPrompt(){
+  return [
+    `Reference sheet of 8 square isometric 3D terrain blocks of the small Amazon-interior town of ${$("#bkCity").value}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block represents ${sizeTxt()} with straight vertical sides showing red earth (terra vermelha) soil layers, all at the same scale and the same 45-degree isometric angle so they can be combined into one town map.`,
+    ...BLOCKS.map((b,i)=>`${i+1}) ${b.name}: ${b.desc} Roads: ${ROADS[b.road][1]}.`),
+    seasonTxt(), styleTxt(), "Consistent lighting and colors across all 8 blocks."
+  ].join("\n");
+}
+let lastPromptsTxt = "";
+function addOut(title, text){
+  const wrap=document.createElement("div"); wrap.className="field";
+  const top=document.createElement("div"); top.className="toolbar";
+  const t=document.createElement("span"); t.className="label"; t.textContent=title;
+  const pre=document.createElement("pre"); pre.className="prompt"; pre.textContent=text;
+  const b=document.createElement("button"); b.className="btn sm"; b.type="button"; b.textContent="Copiar";
+  b.addEventListener("click", async()=>{ const o=b.textContent; try{ await navigator.clipboard.writeText(text); b.textContent="Copiado"; }catch{ const r=document.createRange(); r.selectNodeContents(pre); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent="Selecionado: Ctrl+C"; } setTimeout(()=>b.textContent=o,1600); });
+  top.append(t,b); wrap.append(top,pre); $("#bkOut").append(wrap);
+}
+$("#bkGen").addEventListener("click", ()=>{
+  $("#bkOut").replaceChildren();
+  const parts=[];
+  const sp=sheetPrompt(); addOut("Folha com os 8 blocos juntos", sp); parts.push("=== FOLHA COM OS 8 BLOCOS ===\n"+sp+"\n\nNEGATIVE: "+NEG);
+  BLOCKS.forEach((b,i)=>{ const p=blockPrompt(b,i); addOut(`Bloco ${i+1}: ${b.name}`, p); parts.push(`=== BLOCO ${i+1}: ${b.name} ===\n${p}\n\nNEGATIVE: ${NEG}\nFotos de referência: ${refsOf(b).length}`); });
+  addOut("Negativo (para todos)", NEG);
+  lastPromptsTxt = parts.join("\n\n");
+  $("#bkSave").disabled=false;
+  $("#bkSt").textContent="Prompts prontos. Eles também vão dentro do ZIP do passo 04.";
+});
+async function saveText(name, text){
+  if(downloads){ return downloads.save({ filename:name, data:text }); }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+}
+$("#bkSave").addEventListener("click", async()=>{
+  try{ await saveText(`${slug($("#prefix").value)||"cidade"}_prompts_blocos.txt`, lastPromptsTxt); $("#bkSt").textContent="Prompts baixados."; }
+  catch(e){ $("#bkSt").textContent = e.code==="declined" ? "Download cancelado." : "Não deu para baixar: "+(e.message||e.code||e); }
+});
+renderBlocks();
+
+function fillNames(){ $("#bkNames").replaceChildren(...BLOCKS.map(b=>Object.assign(document.createElement("option"),{value:b.name}))); }
+fillNames(); $("#blocks").addEventListener("input", fillNames);
+
 
 </script>
 
