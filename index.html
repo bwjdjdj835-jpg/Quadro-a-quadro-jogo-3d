@@ -177,13 +177,20 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 
   <div class="cols">
     <section class="step" aria-labelledby="h4s">
-      <h2 id="h4s"><span class="n">04</span>Baixar as fotos</h2>
+      <h2 id="h4s"><span class="n">04</span>Enviar as fotos</h2>
       <div class="fields">
         <div class="field"><label class="label" for="prefix">Nome do arquivo</label><input type="text" id="prefix" value="ministro-andreazza"></div>
         <div class="field"><label class="label" for="q">Qualidade JPG</label><select id="q"><option value="0.95">Máxima (95%)</option><option value="0.9" selected>Alta (90%)</option><option value="0.8">Leve (80%)</option></select></div>
       </div>
       <label class="chk"><input type="checkbox" id="folders" checked> Separar em pastas pelo nome do lugar</label>
-      <div class="row"><button class="btn pri" id="zip" disabled>Baixar ZIP das marcadas</button><span class="meta" id="zipInfo"></span></div>
+      <p class="note">As IAs não abrem ZIP: mande as fotos soltas ou a folha de contato (uma imagem só com todas).</p>
+      <div class="row">
+        <button class="btn pri" id="shareBtn" disabled hidden>Compartilhar com app de IA</button>
+        <button class="btn pri" id="sheetBtn" disabled>Baixar folha de contato (1 imagem)</button>
+        <button class="btn" id="looseBtn" disabled>Baixar fotos soltas (JPG)</button>
+        <button class="btn" id="zip" disabled>Baixar ZIP</button>
+        <span class="meta" id="zipInfo"></span>
+      </div>
       <div id="zst" class="status" hidden></div>
     </section>
 
@@ -437,7 +444,7 @@ function render(){
   const box = $("#sheet"); box.replaceChildren(); typeof countRefs==="function" && countRefs();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  $("#zip").disabled = !nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -461,7 +468,7 @@ function render(){
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ typeof countRefs==="function" && countRefs(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ typeof countRefs==="function" && countRefs(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -518,6 +525,61 @@ $("#zip").addEventListener("click", async () => {
     const m = { declined:"Download cancelado.", too_large:"O ZIP ficou grande demais para este aparelho. Desmarque algumas fotos ou escolha qualidade Leve e largura 1920.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche ele e tente de novo." }[e.code] || ("Não deu para baixar: "+(e.message||e.code||e));
     show(st,m,e.code==="declined"?"":"err");
   }finally{ btn.disabled=false; }
+});
+
+
+/* ---------- exportar sem ZIP (fotos soltas, folha de contato, compartilhar) ---------- */
+async function croppedBlobs(sel){
+  const q = parseFloat($("#q").value)||0.9, outs=[];
+  for(const f of sel){ const k = keepOf(f);
+    if(k>0 && k<1){ const bmp = await createImageBitmap(f.blob); const c=document.createElement("canvas"); c.width=bmp.width; c.height=Math.round(bmp.height*k); c.getContext("2d").drawImage(bmp,0,0); outs.push(await new Promise(r=>c.toBlob(r,"image/jpeg",q))); bmp.close&&bmp.close(); }
+    else outs.push(f.blob); }
+  return outs;
+}
+function fileName(f,i){ const prefix = slug($("#prefix").value)||"quadros", place = slug(f.label)||"sem-nome"; return `${prefix}_${String(i+1).padStart(2,"0")}_${place}_${fmt(f.t).replace(/:/g,"m").replace(".","s")}.jpg`; }
+async function saveBlob(name, blob){
+  if(downloads){ return downloads.save({ filename:name, data:blob }); }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+}
+async function contactSheet(sel, blobs){
+  const n=Math.min(sel.length, 36), cols = n<=4?2 : n<=9?3 : n<=16?4 : n<=25?5 : 6, cellW=520, pad=10, labH=34;
+  const bmps=[]; for(let i=0;i<n;i++) bmps.push(await createImageBitmap(blobs[i]));
+  const cellH = Math.round(cellW * Math.max(...bmps.map(b=>b.height/b.width)));
+  const rows=Math.ceil(n/cols), titleH=60;
+  const c=document.createElement("canvas"); c.width=cols*(cellW+pad)+pad; c.height=titleH+rows*(cellH+labH+pad)+pad;
+  const x=c.getContext("2d"); x.fillStyle="#ffffff"; x.fillRect(0,0,c.width,c.height);
+  x.fillStyle="#22201d"; x.font="bold 30px Barlow, Arial, sans-serif"; x.fillText(($("#bkCity")?.value||$("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 40);
+  bmps.forEach((b,i)=>{ const cx=pad+(i%cols)*(cellW+pad), cy=titleH+Math.floor(i/cols)*(cellH+labH+pad);
+    const s=Math.min(cellW/b.width, cellH/b.height), w=b.width*s, h=b.height*s;
+    x.fillStyle="#eeeae4"; x.fillRect(cx,cy,cellW,cellH); x.drawImage(b, cx+(cellW-w)/2, cy+(cellH-h)/2, w, h);
+    x.fillStyle="#b4471f"; x.fillRect(cx,cy,44,30); x.fillStyle="#fff"; x.font="bold 20px Barlow, Arial, sans-serif"; x.fillText(String(i+1), cx+10, cy+22);
+    x.fillStyle="#22201d"; x.font="18px Barlow, Arial, sans-serif"; x.fillText(`${sel[i].label||"sem nome"} · ${fmt(sel[i].t)}`, cx, cy+cellH+24);
+    b.close&&b.close(); });
+  return await new Promise(r=>c.toBlob(r,"image/jpeg",0.88));
+}
+function expErr(e){ return { declined:"Download cancelado.", too_large:"Ficou grande demais. Desmarque algumas fotos ou escolha qualidade Leve.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche e tente de novo.", AbortError:"Compartilhamento cancelado." }[e.code||e.name] || ("Não deu certo: "+(e.message||e.code||e)); }
+$("#sheetBtn").addEventListener("click", async()=>{
+  const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return; $("#sheetBtn").disabled=true; show(st,"Montando a folha de contato…");
+  try{ const blobs=await croppedBlobs(sel.slice(0,36)); const sheet=await contactSheet(sel, blobs);
+    await saveBlob(`${slug($("#prefix").value)||"quadros"}_folha-de-contato.jpg`, sheet);
+    show(st, sel.length>36 ? `Folha baixada com as 36 primeiras fotos (de ${sel.length}). Desmarque algumas para caber todas.` : `Folha de contato baixada com ${sel.length} fotos.`, "ok");
+  }catch(e){ show(st, expErr(e), e.code==="declined"?"":"err"); } finally{ $("#sheetBtn").disabled=false; }
+});
+$("#looseBtn").addEventListener("click", async()=>{
+  const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return; $("#looseBtn").disabled=true;
+  try{ const blobs=await croppedBlobs(sel); let ok=0;
+    for(let i=0;i<sel.length;i++){ show(st,`Baixando ${i+1} de ${sel.length}…`); await saveBlob(fileName(sel[i],i), blobs[i]); ok++; if(!downloads) await new Promise(r=>setTimeout(r,350)); }
+    show(st, `${ok} fotos baixadas, uma por uma. Se o navegador perguntar, permita "vários downloads".`, "ok");
+  }catch(e){ show(st, expErr(e), e.code==="declined"?"":"err"); } finally{ $("#looseBtn").disabled=false; }
+});
+const canShareFiles = !!(navigator.canShare && (()=>{ try{ return navigator.canShare({files:[new File([new Blob(["x"],{type:"image/jpeg"})],"t.jpg",{type:"image/jpeg"})]}); }catch{ return false; } })());
+$("#shareBtn").hidden = !canShareFiles;
+$("#shareBtn").addEventListener("click", async()=>{
+  const st=$("#zst"), sel=frames.filter(f=>f.sel).slice(0,10); if(!sel.length) return; $("#shareBtn").disabled=true;
+  try{ const blobs=await croppedBlobs(sel); const files=blobs.map((b,i)=>new File([b], fileName(sel[i],i), {type:"image/jpeg"}));
+    await navigator.share({ files, title:"Fotos para o bloco 3D", text: lastPromptsTxt ? lastPromptsTxt.slice(0,3000) : "" });
+    show(st, `${files.length} fotos enviadas.${frames.filter(f=>f.sel).length>10?" (Os apps aceitam até 10 por vez; mande o resto depois.)":""}`, "ok");
+  }catch(e){ show(st, expErr(e), e.name==="AbortError"?"":"err"); } finally{ $("#shareBtn").disabled=false; updateCounts(); }
 });
 
 /* ---------- utilidades ---------- */
