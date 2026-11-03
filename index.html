@@ -105,7 +105,7 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
       <h1>Extrator de <span>Quadros 3D</span></h1>
       <p class="sub">Transforma o vídeo da cidade em fotos boas para gerar os blocos 3D. Tudo roda no seu aparelho: o vídeo não é enviado para lugar nenhum.</p>
     </div>
-    <span class="meta">Ministro Andreazza · RO</span>
+    <span class="meta" id="placeTag">Ministro Andreazza · RO</span>
   </header>
 
   <div class="cols">
@@ -195,19 +195,26 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 
   <section class="step" aria-labelledby="h6s" id="gp">
     <div class="toolbar">
-      <h2 id="h6s"><span class="n">05</span>Bloco 3D da cidade</h2>
+      <h2 id="h6s"><span class="n">05</span>Bloco 3D (maquete)</h2>
       <span class="meta" id="bkInfo"></span>
     </div>
+    <span class="label">O que você filmou</span>
+    <div class="presets" id="bkKind">
+      <button class="preset" type="button" data-k="cidade" aria-pressed="true"><b>Cidade</b><small>Ruas, casas, comércio, praça, prédios públicos.</small></button>
+      <button class="preset" type="button" data-k="sitio" aria-pressed="false"><b>Sítio / fazenda</b><small>Casa, café, pasto, curral, cerca, mata, igarapé. Tamanho em alqueires.</small></button>
+    </div>
+    <span class="label">Como gerar</span>
     <div class="presets" id="bkModes">
-      <button class="preset" type="button" data-m="city" aria-pressed="true"><b>Cidade inteira (1 bloco)</b><small>Um quadrado só com a cidade toda, seguindo o mapa e as fotos. As partes abaixo viram as zonas da cidade.</small></button>
-      <button class="preset" type="button" data-m="tiles" aria-pressed="false"><b>8 blocos separados</b><small>Um quadrado por parte da cidade, com estradas que se encaixam.</small></button>
+      <button class="preset" type="button" data-m="city" aria-pressed="true"><b>Lugar inteiro (1 bloco)</b><small>Um quadrado só com o lugar todo, seguindo o mapa e as fotos. As partes abaixo viram as zonas dele.</small></button>
+      <button class="preset" type="button" data-m="tiles" aria-pressed="false"><b>8 blocos separados</b><small>Um quadrado por parte do lugar, com estradas que se encaixam.</small></button>
     </div>
     <p class="note">Dê às fotos o mesmo nome da zona (no passo 03) para elas virarem referência dela. Os prompts saem em inglês, que os geradores entendem melhor.</p>
-    <label class="chk"><input type="checkbox" id="bkMap" checked> Vou anexar o mapa ou o print do satélite da cidade (o gerador segue as ruas dele)</label>
+    <label class="chk"><input type="checkbox" id="bkMap" checked> Vou anexar o mapa ou o print do satélite (o gerador segue as ruas, cercas e divisões dele)</label>
     <div class="fields">
-      <div class="field"><label class="label" for="bkCity">Cidade</label><input type="text" id="bkCity" value="Ministro Andreazza, Rondônia, Brasil"></div>
+      <div class="field"><label class="label" for="bkCity">Nome do lugar</label><input type="text" id="bkCity" value="Ministro Andreazza, Rondônia, Brasil"></div>
       <div class="field"><label class="label" for="bkDepth">Terra embaixo, nas laterais (m)</label><input type="number" id="bkDepth" min="1" max="50" step="1" value="6"></div>
-      <div class="field"><label class="label" for="bkCitySize">Tamanho da cidade</label><input type="text" id="bkCitySize" value="1,2 km × 1,2 km"></div>
+      <div class="field" id="bkCitySizeF"><label class="label" for="bkCitySize">Tamanho da cidade</label><input type="text" id="bkCitySize" value="1,2 km × 1,2 km"></div>
+      <div class="field" id="bkAreaF" hidden><label class="label" for="bkArea">Área do sítio</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" id="bkArea" min="0.1" step="0.5" value="10" style="max-width:90px"><select id="bkUnit"><option value="2.42" selected>alqueires (paulista)</option><option value="4.84">alqueires (mineiro)</option><option value="1">hectares</option></select></div><span class="meta" id="bkAreaTxt"></span></div>
       <div class="field" id="bkSizeF" hidden><label class="label" for="bkSize">Tamanho de cada bloco</label><select id="bkSize"><option value="100">100 m × 100 m</option><option value="250" selected>250 m × 250 m</option><option value="500">500 m × 500 m</option><option value="1000">1 km × 1 km</option></select></div>
       <div class="field"><label class="label" for="bkStyle">Estilo</label><select id="bkStyle"><option value="realistic">Realista (diorama)</option><option value="lowpoly">Jogo low-poly</option></select></div>
       <div class="field"><label class="label" for="bkSeason">Época</label><select id="bkSeason"><option value="dry">Seca (poeira, sol forte)</option><option value="wet">Chuva (verde, barro)</option></select></div>
@@ -522,7 +529,7 @@ let saved = "foto3d"; try{ saved = localStorage.getItem("preset") || "foto3d"; }
 applyPreset(PRESETS[saved] ? saved : "foto3d");
 
 /* ---------- 05 blocos quadrados ---------- */
-const BLOCKS = [
+const CITY_BLOCKS = [
   { name:"Entrada de terra", road:"dirt-ew", desc:"Red dirt road entering town, simple single-story houses (one yellow house with a low wall), dry grass, scattered trees, wooden fences and utility poles." },
   { name:"Avenida principal", road:"avenue-ew", desc:"Wide paved main avenue with a central median of green grass and big shade trees with white-painted trunks, yellow dashed lines, curbs, motorcycles and pickups." },
   { name:"Rua do comércio", road:"street-ew", desc:"Commercial street with one- and two-story shops with flat painted facades (white, light blue, orange, cream), metal awnings, roll-up doors, small signs, cars parked at the curb." },
@@ -532,6 +539,33 @@ const BLOCKS = [
   { name:"Bairro residencial", road:"cross", desc:"Residential blocks of simple single-story houses with small yards, walls and gates, fruit trees, palm trees, narrow paved streets turning into dirt." },
   { name:"Borda da cidade", road:"dirt-ns", desc:"Edge of town: pasture with barbed-wire fences, a red dirt road, a small river with a wooden bridge, and dense Amazon forest at the back." },
 ];
+const FARM_BLOCKS = [
+  { name:"Casa e terreiro", road:"dirt-ew", desc:"Farmhouse (sede) of wood or simple masonry with a ceramic or metal roof and a front porch, a water tank tower (blue tank on a brick tower), a swept red-earth yard (terreiro), a clothesline, a motorcycle, dogs and chickens, mango and banana trees around." },
+  { name:"Cafezal", road:"none", desc:"Coffee plantation of conilon (robusta) coffee in long straight rows about 3 m apart, tall bushy dark-green plants with red and green berries, dirt paths between the rows." },
+  { name:"Café novo", road:"none", desc:"Young coffee plantation: small young coffee plants in neat rows on bare red earth, some shade from banana plants." },
+  { name:"Pasto", road:"none", desc:"Pasture of braquiária grass divided into paddocks by barbed-wire fences with wooden posts, a few white Nelore cattle, a water trough, a salt trough (cocho), scattered shade trees." },
+  { name:"Curral e galpão", road:"dirt-ns", desc:"Wooden cattle corral with a loading chute, a simple open shed (galpão) with a metal roof storing tools, sacks of coffee and a small tractor or cart, a coffee drying yard of concrete (terreiro de café)." },
+  { name:"Estrada e porteira", road:"dirt-ew", desc:"Red dirt road (linha) in front of the farm with a wooden farm gate (porteira), a mailbox, utility poles with power lines along the road." },
+  { name:"Mata (reserva)", road:"none", desc:"Dense Amazon forest reserve at the back of the property: tall trees, a few Brazil-nut trees (castanheira) rising above the canopy, açaí palms, vines and undergrowth." },
+  { name:"Igarapé", road:"none", desc:"A small stream (igarapé) crossing the land with a simple wooden bridge, buriti and açaí palms along the banks, a small pond for the cattle." },
+];
+let kind = "cidade";
+let BLOCKS = CITY_BLOCKS.map(b=>({...b}));
+function placeOf(){ return kind==="sitio" ? `the small rural farm (sítio) "${$("#bkCity").value}" in the Amazon interior of Rondônia, Brazil` : `the small Amazon-interior town of ${$("#bkCity").value}`; }
+function farmArea(){ const a=Math.max(0.1,parseFloat($("#bkArea").value)||10), u=parseFloat($("#bkUnit").value)||2.42; const ha=a*u; const side=Math.round(Math.sqrt(ha*10000)/10)*10; return {ha, side}; }
+function updArea(){ const {ha,side}=farmArea(); $("#bkAreaTxt").textContent = `≈ ${ha.toFixed(1).replace(".",",")} ha · ≈ ${side} m × ${side} m`; }
+$("#bkArea").addEventListener("input",updArea); $("#bkUnit").addEventListener("change",updArea); updArea();
+const KIND_NAMES = { cidade:"Ministro Andreazza, Rondônia, Brasil", sitio:"Meu sítio, Ministro Andreazza, Rondônia" };
+function setTag(){ $("#placeTag").textContent = ($("#bkCity").value||"").split(",").slice(0,2).map(t=>t.trim()).join(" · "); }
+$("#bkCity").addEventListener("input",()=>{ $("#bkCity").dataset.touched="1"; setTag(); });
+document.querySelectorAll("#bkKind .preset").forEach(b=>b.addEventListener("click",()=>{
+  kind=b.dataset.k; document.querySelectorAll("#bkKind .preset").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  BLOCKS.splice(0, BLOCKS.length, ...(kind==="sitio"?FARM_BLOCKS:CITY_BLOCKS).map(o=>({...o})));
+  if(!$("#bkCity").dataset.touched || Object.values(KIND_NAMES).includes($("#bkCity").value)) $("#bkCity").value = KIND_NAMES[kind];
+  if(!$("#prefix").dataset.touched) $("#prefix").value = kind==="sitio" ? "meu-sitio" : "ministro-andreazza";
+  $("#bkCitySizeF").hidden = kind!=="cidade"; $("#bkAreaF").hidden = kind!=="sitio";
+  setTag(); renderBlocks(); fillNames(); $("#bkOut").replaceChildren(); $("#bkSave").disabled=true; $("#bkSt").textContent="";
+}));
 const ROADS = {
   "dirt-ew":  ["Estrada de terra leste–oeste", "a red dirt road crossing from the exact center of the west edge to the exact center of the east edge"],
   "dirt-ns":  ["Estrada de terra norte–sul", "a red dirt road crossing from the exact center of the north edge to the exact center of the south edge"],
@@ -563,27 +597,28 @@ function countRefs(){ BLOCKS.forEach((b,i)=>{ const el=$("#bkc"+i); if(el){ cons
 function sizeTxt(){ const v=parseInt($("#bkSize").value); return v>=1000 ? "1 km x 1 km" : `${v} m x ${v} m`; }
 function styleTxt(){ return $("#bkStyle").value==="lowpoly"
   ? "Style: clean low-poly 3D game asset, flat colors with soft shading, readable shapes."
-  : "Style: realistic miniature city diorama, detailed textures, photographic lighting, game-ready map tile."; }
+  : "Style: realistic miniature diorama, detailed textures, photographic lighting, game-ready map tile."; }
 function seasonTxt(){ return $("#bkSeason").value==="wet"
   ? "Rainy season: lush green vegetation, wet red mud on dirt roads, puddles, overcast soft light."
   : "Dry season: bright midday sun, light dusty haze, dry grass, red dust on the roads."; }
 function blockPrompt(b,i){
   const refs=refsOf(b);
   return [
-    `Square isometric 3D terrain block (module ${i+1} of 8) of the small Amazon-interior town of ${$("#bkCity").value}, representing ${sizeTxt()}, seen from above at a 45-degree isometric angle.`,
+    `Square isometric 3D terrain block (module ${i+1} of 8) of ${placeOf()}, representing ${sizeTxt()}, seen from above at a 45-degree isometric angle.`,
     sidesTxt()+" Flat ground level at the top edges so it connects seamlessly to the other blocks.",
     `Contents: ${b.desc}`,
     `Road connections: ${ROADS[b.road][1]}, so neighbouring blocks line up.`,
-    `Typical of the region: simple Brazilian interior architecture, utility poles with power lines, motorcycles and pickup trucks, tropical trees.`,
+    kind==="sitio" ? `Typical of Rondônia smallholdings: red earth, barbed-wire fences with wooden posts, simple farm buildings, tropical trees.` : `Typical of the region: simple Brazilian interior architecture, utility poles with power lines, motorcycles and pickup trucks, tropical trees.`,
     seasonTxt(), styleTxt(),
     refs.length ? `Use the ${refs.length} attached reference photo(s) of this place for building shapes, colors and materials.` : "",
     "No text, no labels."
   ].filter(Boolean).join("\n");
 }
+function negTxt(){ return kind==="sitio" ? NEG.replace("skyscrapers, tall towers, European architecture,", "city buildings, urban streets, skyscrapers, European farmhouse, wheat fields, snow mountains,") : NEG; }
 const NEG = "land or scenery outside the square block, ground extending beyond the edges, surrounding terrain, skyscrapers, tall towers, European architecture, snow, beach, ocean, text, labels, watermark, blurry, cartoon, distorted perspective, tile with uneven edges, cropped tile";
 function sheetPrompt(){
   return [
-    `Reference sheet of 8 square isometric 3D terrain blocks of the small Amazon-interior town of ${$("#bkCity").value}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block is an isolated architectural scale model (maquete) of ${sizeTxt()}, cut as a square slab with nothing outside it and vertical cross-section sides about ${Math.max(1,parseFloat($("#bkDepth").value)||6)} m deep showing red earth (terra vermelha) soil layers, rocks and roots, all at the same scale and the same 45-degree isometric angle so they can be combined into one town map.`,
+    `Reference sheet of 8 square isometric 3D terrain blocks of ${placeOf()}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block is an isolated architectural scale model (maquete) of ${sizeTxt()}, cut as a square slab with nothing outside it and vertical cross-section sides about ${Math.max(1,parseFloat($("#bkDepth").value)||6)} m deep showing red earth (terra vermelha) soil layers, rocks and roots, all at the same scale and the same 45-degree isometric angle so they can be combined into one map.`,
     ...BLOCKS.map((b,i)=>`${i+1}) ${b.name}: ${b.desc} Roads: ${ROADS[b.road][1]}.`),
     seasonTxt(), styleTxt(), "Consistent lighting and colors across all 8 blocks."
   ].join("\n");
@@ -593,11 +628,21 @@ let bkMode="city";
 document.querySelectorAll("#bkModes .preset").forEach(b=>b.addEventListener("click",()=>{ bkMode=b.dataset.m;
   document.querySelectorAll("#bkModes .preset").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
   $("#bkSizeF").hidden = bkMode!=="tiles"; $("#bkOut").replaceChildren(); $("#bkSave").disabled=true; $("#bkSt").textContent=""; }));
-function sidesTxt(){ const d=Math.max(1,Math.min(50,parseFloat($("#bkDepth").value)||6)); return `Architectural scale model (maquete): the block is cut out as a perfect square slab, isolated and floating on a plain light grey background, with NOTHING outside the square: no surrounding land, no roads or trees beyond the edges. The four sides are clean vertical cross-section cuts about ${d} meters deep, showing the underground: layers of red earth (terra vermelha), darker topsoil, laterite gravel, small rocks and tree roots, with the asphalt and sidewalks cut cleanly at the edge.`; }
+function sidesTxt(){ const d=Math.max(1,Math.min(50,parseFloat($("#bkDepth").value)||6)); return `Architectural scale model (maquete): the block is cut out as a perfect square slab, isolated and floating on a plain light grey background, with NOTHING outside the square: no surrounding land, no roads or trees beyond the edges. The four sides are clean vertical cross-section cuts about ${d} meters deep, showing the underground: layers of red earth (terra vermelha), darker topsoil, laterite gravel, small rocks and tree roots, ${kind==="sitio"?"with the dirt road, fences and plant roots cut cleanly at the edge":"with the asphalt and sidewalks cut cleanly at the edge"}.`; }
 function citySizeEn(){ return ($("#bkCitySize").value||"1.2 km x 1.2 km").replace(/,/g,".").replace(/×/g,"x"); }
 function cityPrompt(){
   const withMap=$("#bkMap").checked, refs=frames.filter(f=>f.sel).length;
   const zones=BLOCKS.map((b,i)=>`- ${b.name}: ${b.desc}`).join("\n");
+  if(kind==="sitio"){ const {ha,side}=farmArea(); return [
+    `One single square isometric 3D architectural scale model (maquete) of the WHOLE rural farm (sítio) "${$("#bkCity").value}" in the Amazon interior of Rondônia, Brazil, seen from above at a 45-degree angle. The property is about ${ha.toFixed(1)} hectares, so the square block is about ${side} m x ${side} m.`,
+    withMap ? "Follow the attached satellite image / sketch EXACTLY for where the house, the coffee rows, the pasture paddocks, the fences, the forest and the water are. Do not invent new areas." : "Typical Rondônia lot layout: the house and the coffee near the dirt road at the front, the pasture in the middle, the forest reserve at the back.",
+    sidesTxt(),
+    "Areas of the farm to include:\n"+zones,
+    "Everything at real scale: one farmhouse and a few small farm buildings only, thousands of coffee plants in rows, fences with posts every 2.5 m.",
+    seasonTxt(), styleTxt(),
+    refs ? `Use the attached ${refs} photo(s) from this farm for the look of the house, the plants, the fences and the colors.` : "",
+    "No text, no labels."
+  ].filter(Boolean).join("\n"); }
   return [
     `One single square isometric 3D diorama block containing the WHOLE small town of ${$("#bkCity").value}, an Amazon-interior town in Rondônia, Brazil. The block represents about ${citySizeEn()} (the real urban area is about 1.5 km²) and includes only a thin rural edge inside the square, seen from above at a 45-degree isometric angle.`,
     withMap ? "Follow the attached map / satellite image EXACTLY for the street grid, the block shapes, the main avenue, the central square, the parks, the rivers and where the forest and pasture are. Do not invent new streets and do not remove any." : "Simple grid of streets typical of planned Rondônia colonization towns, with one main avenue crossing the center.",
@@ -622,12 +667,12 @@ function addOut(title, text){
 $("#bkGen").addEventListener("click", ()=>{
   $("#bkOut").replaceChildren();
   const parts=[];
-  if(bkMode==="city"){ const cp=cityPrompt(); addOut("Cidade inteira: 1 bloco", cp); addOut("Negativo", NEG);
-    lastPromptsTxt = "=== CIDADE INTEIRA (1 BLOCO) ===\n"+cp+"\n\nNEGATIVE: "+NEG+"\n\nAnexe junto: "+($("#bkMap").checked?"o mapa/satélite da cidade + ":"")+"2 a 4 fotos de rua (passo 03).";
+  if(bkMode==="city"){ const cp=cityPrompt(), nm=kind==="sitio"?"Sítio inteiro":"Cidade inteira", ng=negTxt(); addOut(nm+": 1 bloco", cp); addOut("Negativo", ng);
+    lastPromptsTxt = "=== "+nm.toUpperCase()+" (1 BLOCO) ===\n"+cp+"\n\nNEGATIVE: "+ng+"\n\nAnexe junto: "+($("#bkMap").checked?"o mapa/satélite + ":"")+"2 a 4 fotos (passo 03).";
     $("#bkSave").disabled=false; $("#bkSt").textContent="Prompt pronto. Anexe o mapa e algumas fotos no gerador."; return; }
-  const sp=sheetPrompt(); addOut("Folha com os 8 blocos juntos", sp); parts.push("=== FOLHA COM OS 8 BLOCOS ===\n"+sp+"\n\nNEGATIVE: "+NEG);
-  BLOCKS.forEach((b,i)=>{ const p=blockPrompt(b,i); addOut(`Bloco ${i+1}: ${b.name}`, p); parts.push(`=== BLOCO ${i+1}: ${b.name} ===\n${p}\n\nNEGATIVE: ${NEG}\nFotos de referência: ${refsOf(b).length}`); });
-  addOut("Negativo (para todos)", NEG);
+  const sp=sheetPrompt(); addOut("Folha com os 8 blocos juntos", sp); parts.push("=== FOLHA COM OS 8 BLOCOS ===\n"+sp+"\n\nNEGATIVE: "+negTxt());
+  BLOCKS.forEach((b,i)=>{ const p=blockPrompt(b,i); addOut(`Bloco ${i+1}: ${b.name}`, p); parts.push(`=== BLOCO ${i+1}: ${b.name} ===\n${p}\n\nNEGATIVE: ${negTxt()}\nFotos de referência: ${refsOf(b).length}`); });
+  addOut("Negativo (para todos)", negTxt());
   lastPromptsTxt = parts.join("\n\n");
   $("#bkSave").disabled=false;
   $("#bkSt").textContent="Prompts prontos. Eles também vão dentro do ZIP do passo 04.";
@@ -637,7 +682,7 @@ async function saveText(name, text){
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
 $("#bkSave").addEventListener("click", async()=>{
-  try{ await saveText(`${slug($("#prefix").value)||"cidade"}_prompts_blocos.txt`, lastPromptsTxt); $("#bkSt").textContent="Prompts baixados."; }
+  try{ await saveText(`${slug($("#prefix").value)||kind}_prompts_blocos.txt`, lastPromptsTxt); $("#bkSt").textContent="Prompts baixados."; }
   catch(e){ $("#bkSt").textContent = e.code==="declined" ? "Download cancelado." : "Não deu para baixar: "+(e.message||e.code||e); }
 });
 renderBlocks();
