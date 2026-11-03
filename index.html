@@ -195,13 +195,20 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 
   <section class="step" aria-labelledby="h6s" id="gp">
     <div class="toolbar">
-      <h2 id="h6s"><span class="n">05</span>Blocos quadrados (8 módulos)</h2>
+      <h2 id="h6s"><span class="n">05</span>Bloco 3D da cidade</h2>
       <span class="meta" id="bkInfo"></span>
     </div>
-    <p class="note">Cada bloco é um quadrado do mapa da cidade. Dê às fotos o mesmo nome do bloco (no passo 03) para elas virarem referência dele. Os prompts saem em inglês, que os geradores entendem melhor.</p>
+    <div class="presets" id="bkModes">
+      <button class="preset" type="button" data-m="city" aria-pressed="true"><b>Cidade inteira (1 bloco)</b><small>Um quadrado só com a cidade toda, seguindo o mapa e as fotos. As partes abaixo viram as zonas da cidade.</small></button>
+      <button class="preset" type="button" data-m="tiles" aria-pressed="false"><b>8 blocos separados</b><small>Um quadrado por parte da cidade, com estradas que se encaixam.</small></button>
+    </div>
+    <p class="note">Dê às fotos o mesmo nome da zona (no passo 03) para elas virarem referência dela. Os prompts saem em inglês, que os geradores entendem melhor.</p>
+    <label class="chk"><input type="checkbox" id="bkMap" checked> Vou anexar o mapa ou o print do satélite da cidade (o gerador segue as ruas dele)</label>
     <div class="fields">
       <div class="field"><label class="label" for="bkCity">Cidade</label><input type="text" id="bkCity" value="Ministro Andreazza, Rondônia, Brasil"></div>
-      <div class="field"><label class="label" for="bkSize">Tamanho de cada bloco</label><select id="bkSize"><option value="100">100 m × 100 m</option><option value="250" selected>250 m × 250 m</option><option value="500">500 m × 500 m</option><option value="1000">1 km × 1 km</option></select></div>
+      <div class="field"><label class="label" for="bkDepth">Terra embaixo, nas laterais (m)</label><input type="number" id="bkDepth" min="1" max="50" step="1" value="6"></div>
+      <div class="field"><label class="label" for="bkCitySize">Tamanho da cidade</label><input type="text" id="bkCitySize" value="1,2 km × 1,2 km"></div>
+      <div class="field" id="bkSizeF" hidden><label class="label" for="bkSize">Tamanho de cada bloco</label><select id="bkSize"><option value="100">100 m × 100 m</option><option value="250" selected>250 m × 250 m</option><option value="500">500 m × 500 m</option><option value="1000">1 km × 1 km</option></select></div>
       <div class="field"><label class="label" for="bkStyle">Estilo</label><select id="bkStyle"><option value="realistic">Realista (diorama)</option><option value="lowpoly">Jogo low-poly</option></select></div>
       <div class="field"><label class="label" for="bkSeason">Época</label><select id="bkSeason"><option value="dry">Seca (poeira, sol forte)</option><option value="wet">Chuva (verde, barro)</option></select></div>
     </div>
@@ -249,12 +256,12 @@ const PRESETS = {
 let preset = "foto3d";
 function applyPreset(p){
   preset = p; const P = PRESETS[p];
-  document.querySelectorAll(".preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.p===p)));
+  document.querySelectorAll("#presets .preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.p===p)));
   $("#iv").value = P.iv; $("#dedup").checked = P.dedup; $("#minSharp").value = P.min; $("#minSharpV").textContent = P.min;
   $("#tips").replaceChildren(...P.tips.map(t=>Object.assign(document.createElement("li"),{textContent:t})));
   estimate(); try{ localStorage.setItem("preset",p); }catch{}
 }
-document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>applyPreset(b.dataset.p)));
+document.querySelectorAll("#presets .preset").forEach(b=>b.addEventListener("click",()=>applyPreset(b.dataset.p)));
 
 /* ---------- abrir vídeo ---------- */
 let curFile = null, triedData = false;
@@ -564,22 +571,43 @@ function blockPrompt(b,i){
   const refs=refsOf(b);
   return [
     `Square isometric 3D terrain block (module ${i+1} of 8) of the small Amazon-interior town of ${$("#bkCity").value}, representing ${sizeTxt()}, seen from above at a 45-degree isometric angle.`,
-    `The tile is a perfect square with straight vertical sides showing layers of red earth (terra vermelha) soil; flat ground level at the edges so it connects seamlessly to the other blocks.`,
+    sidesTxt()+" Flat ground level at the top edges so it connects seamlessly to the other blocks.",
     `Contents: ${b.desc}`,
     `Road connections: ${ROADS[b.road][1]}, so neighbouring blocks line up.`,
     `Typical of the region: simple Brazilian interior architecture, utility poles with power lines, motorcycles and pickup trucks, tropical trees.`,
     seasonTxt(), styleTxt(),
     refs.length ? `Use the ${refs.length} attached reference photo(s) of this place for building shapes, colors and materials.` : "",
-    "Plain light background around the tile, no text, no labels."
+    "No text, no labels."
   ].filter(Boolean).join("\n");
 }
-const NEG = "skyscrapers, tall towers, European architecture, snow, beach, ocean, text, labels, watermark, blurry, cartoon, distorted perspective, tile with uneven edges, cropped tile";
+const NEG = "land or scenery outside the square block, ground extending beyond the edges, surrounding terrain, skyscrapers, tall towers, European architecture, snow, beach, ocean, text, labels, watermark, blurry, cartoon, distorted perspective, tile with uneven edges, cropped tile";
 function sheetPrompt(){
   return [
-    `Reference sheet of 8 square isometric 3D terrain blocks of the small Amazon-interior town of ${$("#bkCity").value}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block represents ${sizeTxt()} with straight vertical sides showing red earth (terra vermelha) soil layers, all at the same scale and the same 45-degree isometric angle so they can be combined into one town map.`,
+    `Reference sheet of 8 square isometric 3D terrain blocks of the small Amazon-interior town of ${$("#bkCity").value}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block is an isolated architectural scale model (maquete) of ${sizeTxt()}, cut as a square slab with nothing outside it and vertical cross-section sides about ${Math.max(1,parseFloat($("#bkDepth").value)||6)} m deep showing red earth (terra vermelha) soil layers, rocks and roots, all at the same scale and the same 45-degree isometric angle so they can be combined into one town map.`,
     ...BLOCKS.map((b,i)=>`${i+1}) ${b.name}: ${b.desc} Roads: ${ROADS[b.road][1]}.`),
     seasonTxt(), styleTxt(), "Consistent lighting and colors across all 8 blocks."
   ].join("\n");
+}
+
+let bkMode="city";
+document.querySelectorAll("#bkModes .preset").forEach(b=>b.addEventListener("click",()=>{ bkMode=b.dataset.m;
+  document.querySelectorAll("#bkModes .preset").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  $("#bkSizeF").hidden = bkMode!=="tiles"; $("#bkOut").replaceChildren(); $("#bkSave").disabled=true; $("#bkSt").textContent=""; }));
+function sidesTxt(){ const d=Math.max(1,Math.min(50,parseFloat($("#bkDepth").value)||6)); return `Architectural scale model (maquete): the block is cut out as a perfect square slab, isolated and floating on a plain light grey background, with NOTHING outside the square: no surrounding land, no roads or trees beyond the edges. The four sides are clean vertical cross-section cuts about ${d} meters deep, showing the underground: layers of red earth (terra vermelha), darker topsoil, laterite gravel, small rocks and tree roots, with the asphalt and sidewalks cut cleanly at the edge.`; }
+function citySizeEn(){ return ($("#bkCitySize").value||"1.2 km x 1.2 km").replace(/,/g,".").replace(/×/g,"x"); }
+function cityPrompt(){
+  const withMap=$("#bkMap").checked, refs=frames.filter(f=>f.sel).length;
+  const zones=BLOCKS.map((b,i)=>`- ${b.name}: ${b.desc}`).join("\n");
+  return [
+    `One single square isometric 3D diorama block containing the WHOLE small town of ${$("#bkCity").value}, an Amazon-interior town in Rondônia, Brazil. The block represents about ${citySizeEn()} (the real urban area is about 1.5 km²) and includes only a thin rural edge inside the square, seen from above at a 45-degree isometric angle.`,
+    withMap ? "Follow the attached map / satellite image EXACTLY for the street grid, the block shapes, the main avenue, the central square, the parks, the rivers and where the forest and pasture are. Do not invent new streets and do not remove any." : "Simple grid of streets typical of planned Rondônia colonization towns, with one main avenue crossing the center.",
+    sidesTxt(),
+    "Town zones to include:\n"+zones,
+    "Buildings are low: almost all one story, a few two stories, no tall buildings. Simple Brazilian interior architecture, painted walls, metal roofs, walls and gates around houses, utility poles with power lines, motorcycles and pickup trucks, many tropical trees.",
+    seasonTxt(), styleTxt(),
+    refs ? `Use the attached ${refs} street photo(s) from the town for the look of the houses, shops, trees, sidewalks and colors.` : "",
+    "No text, no labels."
+  ].filter(Boolean).join("\n");
 }
 let lastPromptsTxt = "";
 function addOut(title, text){
@@ -594,6 +622,9 @@ function addOut(title, text){
 $("#bkGen").addEventListener("click", ()=>{
   $("#bkOut").replaceChildren();
   const parts=[];
+  if(bkMode==="city"){ const cp=cityPrompt(); addOut("Cidade inteira: 1 bloco", cp); addOut("Negativo", NEG);
+    lastPromptsTxt = "=== CIDADE INTEIRA (1 BLOCO) ===\n"+cp+"\n\nNEGATIVE: "+NEG+"\n\nAnexe junto: "+($("#bkMap").checked?"o mapa/satélite da cidade + ":"")+"2 a 4 fotos de rua (passo 03).";
+    $("#bkSave").disabled=false; $("#bkSt").textContent="Prompt pronto. Anexe o mapa e algumas fotos no gerador."; return; }
   const sp=sheetPrompt(); addOut("Folha com os 8 blocos juntos", sp); parts.push("=== FOLHA COM OS 8 BLOCOS ===\n"+sp+"\n\nNEGATIVE: "+NEG);
   BLOCKS.forEach((b,i)=>{ const p=blockPrompt(b,i); addOut(`Bloco ${i+1}: ${b.name}`, p); parts.push(`=== BLOCO ${i+1}: ${b.name} ===\n${p}\n\nNEGATIVE: ${NEG}\nFotos de referência: ${refsOf(b).length}`); });
   addOut("Negativo (para todos)", NEG);
