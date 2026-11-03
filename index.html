@@ -182,10 +182,11 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
         <div class="field"><label class="label" for="prefix">Nome do arquivo</label><input type="text" id="prefix" value="ministro-andreazza"></div>
         <div class="field"><label class="label" for="q">Qualidade JPG</label><select id="q"><option value="0.95">Máxima (95%)</option><option value="0.9" selected>Alta (90%)</option><option value="0.8">Leve (80%)</option></select></div>
       </div>
-      <label class="chk"><input type="checkbox" id="folders" checked> Separar em pastas pelo nome do lugar</label>
+      <label class="chk"><input type="checkbox" id="folders" checked> Separar em subpastas pelo nome do lugar</label>
       <p class="note">As IAs não abrem ZIP: mande as fotos soltas ou a folha de contato (uma imagem só com todas).</p>
       <div class="row">
         <button class="btn pri" id="shareBtn" disabled hidden>Compartilhar com app de IA</button>
+        <button class="btn pri" id="dirBtn" disabled>Salvar numa pasta (sem ZIP)</button>
         <button class="btn pri" id="sheetBtn" disabled>Baixar folha de contato (1 imagem)</button>
         <button class="btn" id="looseBtn" disabled>Baixar fotos soltas (JPG)</button>
         <button class="btn" id="zip" disabled>Baixar ZIP</button>
@@ -444,7 +445,7 @@ function render(){
   const box = $("#sheet"); box.replaceChildren(); typeof countRefs==="function" && countRefs();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -468,7 +469,7 @@ function render(){
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ typeof countRefs==="function" && countRefs(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ typeof countRefs==="function" && countRefs(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -580,6 +581,33 @@ $("#shareBtn").addEventListener("click", async()=>{
     await navigator.share({ files, title:"Fotos para o bloco 3D", text: lastPromptsTxt ? lastPromptsTxt.slice(0,3000) : "" });
     show(st, `${files.length} fotos enviadas.${frames.filter(f=>f.sel).length>10?" (Os apps aceitam até 10 por vez; mande o resto depois.)":""}`, "ok");
   }catch(e){ show(st, expErr(e), e.name==="AbortError"?"":"err"); } finally{ $("#shareBtn").disabled=false; updateCounts(); }
+});
+
+
+/* ---------- salvar numa pasta (sem ZIP) ---------- */
+const canPickDir = typeof window.showDirectoryPicker === "function" && window.self === window.top;
+$("#dirBtn").addEventListener("click", async()=>{
+  const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return;
+  if(!canPickDir){ show(st, "Este navegador não deixa o site gravar numa pasta (no celular e dentro do app do Claude não funciona). Use \"Baixar fotos soltas\": elas vão todas para a pasta Downloads. No computador, abra o site no Chrome ou no Edge para usar esta opção.", "err"); return; }
+  let root; try{ root = await window.showDirectoryPicker({ mode:"readwrite" }); }catch(e){ if(e.name!=="AbortError") show(st, "Não deu para abrir a pasta: "+(e.message||e), "err"); return; }
+  $("#dirBtn").disabled=true;
+  try{
+    const prefix = slug($("#prefix").value)||"quadros";
+    const dir = await root.getDirectoryHandle(`${prefix}_fotos`, { create:true });
+    const byFolder = $("#folders").checked, blobs = await croppedBlobs(sel), used = {};
+    const write = async (d, name, data)=>{ const fh = await d.getFileHandle(name, { create:true }); const w = await fh.createWritable(); await w.write(data); await w.close(); };
+    for(let i=0;i<sel.length;i++){
+      const place = slug(sel[i].label)||"sem-nome"; used[place]=(used[place]||0)+1;
+      const d = byFolder ? await dir.getDirectoryHandle(place, { create:true }) : dir;
+      show(st, `Gravando ${i+1} de ${sel.length}…`); await write(d, fileName(sel[i], i), blobs[i]);
+    }
+    show(st, "Montando a folha de contato…");
+    await write(dir, `${prefix}_folha-de-contato.jpg`, await contactSheet(sel, blobs.slice(0,36)));
+    if(lastPromptsTxt) await write(dir, "PROMPTS-BLOCOS.txt", lastPromptsTxt);
+    await write(dir, "LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+"\n\nPara a IA: envie a folha de contato + o prompt + o print do satélite.\n");
+    show(st, `Pronto: pasta "${prefix}_fotos" criada com ${sel.length} fotos${byFolder?" separadas por lugar":""}, a folha de contato${lastPromptsTxt?" e os prompts":""}.`, "ok");
+  }catch(e){ show(st, "Não deu para gravar na pasta: "+(e.message||e.name||e), "err"); }
+  finally{ $("#dirBtn").disabled=false; }
 });
 
 /* ---------- utilidades ---------- */
