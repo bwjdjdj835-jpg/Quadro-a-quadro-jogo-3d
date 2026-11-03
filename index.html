@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Extrator de Quadros 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field-survey workbench — video on top, numbered steps, contact sheet of frames below */
+:root{
+  --bg:#f4f1ec; --panel:#fffdf9; --ink:#22201d; --muted:#6f6860; --line:#ddd5cb;
+  --accent:#b4471f; --accent-ink:#fff; --soft:#f3e2d8; --good:#2f7d4f; --mid:#b07a12; --bad:#b3332a;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#171513; --panel:#211e1b; --ink:#f1ece6; --muted:#a69d93; --line:#3b3530;
+  --accent:#e8774a; --accent-ink:#1d0f08; --soft:#3a271d; --good:#62c58b; --mid:#e2b04d; --bad:#ef6b60; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171513; --panel:#211e1b; --ink:#f1ece6; --muted:#a69d93; --line:#3b3530;
+  --accent:#e8774a; --accent-ink:#1d0f08; --soft:#3a271d; --good:#62c58b; --mid:#e2b04d; --bad:#ef6b60; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 56px}
+.wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:10px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(32px,6vw,50px);line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+h1 span{color:var(--accent)}
+.sub{margin:4px 0 0;color:var(--muted);max-width:62ch}
+h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.02em;text-transform:uppercase;margin:0;display:flex;gap:10px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.step{background:var(--panel);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.drop{border:2px dashed var(--line);padding:22px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:8px;align-items:center}
+.drop.over{border-color:var(--accent);background:var(--soft)}
+video{width:100%;max-height:52vh;background:#000;display:block}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.meta{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+input[type=number],input[type=text],select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);padding:7px 9px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+button.btn{font-family:var(--body);font-weight:600;font-size:14.5px;border:1px solid var(--ink);background:var(--panel);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.btn.sm{padding:4px 9px;font-size:13px}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.preset{border:1px solid var(--line);background:var(--bg);padding:10px 12px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:2px}
+.preset b{font-weight:600}
+.preset small{color:var(--muted);font-size:13px;line-height:1.35}
+.preset[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--soft)}
+.bar{height:8px;background:var(--line);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);width:0}
+.note{font-size:14px;color:var(--muted);margin:0}
+.status{font-size:14px;padding:8px 10px;border-left:3px solid var(--mid);background:var(--soft)}
+.status.ok{border-left-color:var(--good)}
+.status.err{border-left-color:var(--bad)}
+.tips{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14.5px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.sheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.frame{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.frame.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.frame .th{aspect-ratio:16/9;max-width:100%;background:#000;border:0;padding:0;cursor:zoom-in;display:block;width:100%}
+.frame .th img{width:100%;height:100%;object-fit:cover;display:block}
+.frame .fb{padding:8px;display:flex;flex-direction:column;gap:6px}
+.frame .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tc{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.sharp{display:flex;gap:6px;align-items:center;font-size:12px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.good{background:var(--good)} .dot.mid{background:var(--mid)} .dot.bad{background:var(--bad)}
+.frame input[type=text]{font-size:13px;padding:5px 7px}
+.chk{display:flex;gap:6px;align-items:center;font-size:13.5px;cursor:pointer}
+.empty{border:1px dashed var(--line);padding:22px;text-align:center;color:var(--muted)}
+.viewer{position:fixed;inset:0;background:rgba(10,9,8,.92);z-index:50;display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.viewer img{max-width:100%;max-height:78vh;object-fit:contain}
+.viewer .row{justify-content:center;color:#f1ece6}
+.viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
+.viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Extrator de <span>Quadros 3D</span></h1>
+      <p class="sub">Transforma o vídeo da cidade em fotos boas para gerar os blocos 3D. Tudo roda no seu aparelho: o vídeo não é enviado para lugar nenhum.</p>
+    </div>
+    <span class="meta">Ministro Andreazza · RO</span>
+  </header>
+
+  <div class="cols">
+    <section class="step" aria-labelledby="h1s">
+      <h2 id="h1s"><span class="n">01</span>Abrir o vídeo</h2>
+      <div class="drop" id="drop">
+        <span>Arraste o vídeo aqui ou</span>
+        <button class="btn pri" type="button" id="pick">Escolher vídeo da galeria</button>
+        <span class="note">Se o botão não abrir a galeria, use o campo abaixo:</span>
+        <input type="file" id="file" accept="video/*,.mp4,.mov,.m4v,.3gp,.webm" aria-label="Escolher arquivo de vídeo" style="max-width:100%;font:inherit;color:var(--ink)">
+        <span class="note">MP4 ou MOV, do celular mesmo. Se nada abrir, tente pelo Chrome.</span>
+      </div>
+      <video id="vid" controls playsinline preload="auto" hidden></video>
+      <div class="row" id="vidMeta" hidden>
+        <span class="meta" id="metaTxt"></span>
+        <button class="btn sm" id="capBtn" title="Atalho: tecla C">Capturar este quadro</button>
+        <button class="btn sm" id="setStart">Início aqui</button>
+        <button class="btn sm" id="setEnd">Fim aqui</button>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="h2s">
+      <h2 id="h2s"><span class="n">02</span>Para que são as fotos</h2>
+      <div class="presets" id="presets">
+        <button class="preset" data-p="foto3d" aria-pressed="true"><b>Foto → 3D</b><small>Hunyuan3D, TRELLIS, Tripo. Poucas fotos, só as mais nítidas, um prédio por foto.</small></button>
+        <button class="preset" data-p="fotogrametria" aria-pressed="false"><b>Fotogrametria</b><small>RealityScan, Polycam. Muitas fotos em sequência, com sobreposição.</small></button>
+        <button class="preset" data-p="ref" aria-pressed="false"><b>Referência / textura</b><small>Fachadas, placas e muros para usar de textura ou referência.</small></button>
+      </div>
+      <div class="fields">
+        <div class="field"><label class="label" for="iv">1 quadro a cada (s)</label><input type="number" id="iv" min="0.2" max="30" step="0.1" value="2"></div>
+        <div class="field"><label class="label" for="t0">Começar em (s)</label><input type="number" id="t0" min="0" step="0.1" value="0"></div>
+        <div class="field"><label class="label" for="t1">Terminar em (s)</label><input type="number" id="t1" min="0" step="0.1" value="0"></div>
+        <div class="field"><label class="label" for="maxw">Largura máx. (px)</label>
+          <select id="maxw"><option value="0">Original</option><option value="1920">1920</option><option value="1280">1280</option></select></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="dedup" checked> Pular quadros quase iguais (câmera parada)</label>
+      <div class="row"><button class="btn pri" id="go" disabled>Extrair quadros</button><button class="btn" id="stop" hidden>Parar</button><span class="meta" id="est"></span></div>
+      <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+      <div id="st" class="status" hidden></div>
+    </section>
+  </div>
+
+  <section class="step" aria-labelledby="h3s">
+    <div class="toolbar">
+      <h2 id="h3s"><span class="n">03</span>Escolher as melhores</h2>
+      <span class="meta" id="count">0 quadros</span>
+    </div>
+    <div class="toolbar">
+      <div class="row">
+        <button class="btn sm" id="selSharp">Marcar só as nítidas</button>
+        <button class="btn sm" id="selAll">Marcar todas</button>
+        <button class="btn sm" id="selNone">Desmarcar</button>
+        <button class="btn sm" id="delUnsel">Apagar desmarcadas</button>
+      </div>
+      <div class="row" style="flex:1 1 260px;max-width:420px">
+        <label class="label" for="minSharp" style="white-space:nowrap">Nitidez mínima</label>
+        <input type="range" id="minSharp" min="0" max="100" value="45" aria-describedby="minSharpV"><span class="meta" id="minSharpV">45</span>
+      </div>
+    </div>
+    <div class="row">
+      <label class="label" for="bulkLabel">Nome do lugar para as marcadas</label>
+      <input type="text" id="bulkLabel" placeholder="Ex.: Igreja Matriz, Avenida principal, Prefeitura" style="max-width:340px">
+      <button class="btn sm" id="applyLabel">Aplicar</button>
+    </div>
+    <div id="sheet" class="sheet"><div class="empty">Os quadros aparecem aqui. Abra um vídeo e clique em "Extrair quadros", ou use "Capturar este quadro" enquanto assiste.</div></div>
+  </section>
+
+  <div class="cols">
+    <section class="step" aria-labelledby="h4s">
+      <h2 id="h4s"><span class="n">04</span>Baixar as fotos</h2>
+      <div class="fields">
+        <div class="field"><label class="label" for="prefix">Nome do arquivo</label><input type="text" id="prefix" value="ministro-andreazza"></div>
+        <div class="field"><label class="label" for="q">Qualidade JPG</label><select id="q"><option value="0.95">Máxima (95%)</option><option value="0.9" selected>Alta (90%)</option><option value="0.8">Leve (80%)</option></select></div>
+      </div>
+      <label class="chk"><input type="checkbox" id="folders" checked> Separar em pastas pelo nome do lugar</label>
+      <div class="row"><button class="btn pri" id="zip" disabled>Baixar ZIP das marcadas</button><span class="meta" id="zipInfo"></span></div>
+      <div id="zst" class="status" hidden></div>
+    </section>
+
+    <section class="step" aria-labelledby="h5s">
+      <h2 id="h5s"><span class="n">i</span>Como filmar para dar certo</h2>
+      <ul class="tips" id="tips"></ul>
+    </section>
+  </div>
+</div>
+
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Quadro ampliado">
+  <img id="vImg" alt="">
+  <div class="row"><span class="tc" id="vInfo"></span></div>
+  <div class="row">
+    <button class="btn" id="vPrev">← Anterior</button>
+    <button class="btn pri" id="vSel">Marcar</button>
+    <button class="btn" id="vNext">Próximo →</button>
+    <button class="btn" id="vClose">Fechar (Esc)</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const vid = $("#vid");
+const frames = []; // {id,t,blob,thumb,w,h,sharp,score,sel,label}
+let nextId = 1, running = false, cancel = false, downloads = null, viewIdx = -1;
+
+const PRESETS = {
+  foto3d: { iv: 2, dedup: true, min: 55, tips: [
+    "Pare na frente de cada prédio por 2 a 3 segundos, com ele inteiro no quadro.",
+    "Filme de dia, com o sol atrás de você ou com o céu nublado.",
+    "Um prédio de cada vez. Para o gerador, carro e gente na frente atrapalham.",
+    "Depois escolha 1 foto por prédio: a mais nítida e mais de frente." ]},
+  fotogrametria: { iv: 0.7, dedup: false, min: 40, tips: [
+    "Ande devagar dando a volta no prédio, sem parar e sem girar a câmera rápido.",
+    "Cada foto precisa ter uns 70% da imagem em comum com a anterior.",
+    "Mantenha a mesma distância e altura; depois faça uma volta mais alta, com o braço erguido.",
+    "Envie de 40 a 150 fotos do mesmo prédio para o RealityScan ou o Polycam." ]},
+  ref: { iv: 3, dedup: true, min: 50, tips: [
+    "Filme as fachadas bem de frente, sem ângulo, para virar textura reta.",
+    "Chegue perto de placas, muros, calçadas e telhados: detalhe vale mais que distância.",
+    "Grave as ruas do meio da pista (com segurança) para ver o tamanho e o espaçamento das casas.",
+    "Use o nome do lugar em cada foto para achar depois." ]},
+};
+let preset = "foto3d";
+function applyPreset(p){
+  preset = p; const P = PRESETS[p];
+  document.querySelectorAll(".preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.p===p)));
+  $("#iv").value = P.iv; $("#dedup").checked = P.dedup; $("#minSharp").value = P.min; $("#minSharpV").textContent = P.min;
+  $("#tips").replaceChildren(...P.tips.map(t=>Object.assign(document.createElement("li"),{textContent:t})));
+  estimate(); try{ localStorage.setItem("preset",p); }catch{}
+}
+document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>applyPreset(b.dataset.p)));
+
+/* ---------- abrir vídeo ---------- */
+let curFile = null, triedData = false;
+function fileInfo(f){ return `${f.name} · ${(f.size/1048576).toFixed(0)} MB · ${f.type||"tipo desconhecido"}`; }
+function openFile(f){
+  if(!f){ status("Nenhum arquivo chegou. Tente escolher de novo, ou use o Chrome.","err"); return; }
+  if(!(f.type||"").startsWith("video/") && !/\.(mp4|mov|m4v|webm|3gp|mkv)$/i.test(f.name)){ status(`Esse arquivo não parece ser um vídeo (${fileInfo(f)}).`,"err"); return; }
+  curFile = f; triedData = false;
+  if(vid.src && vid.src.startsWith("blob:")) URL.revokeObjectURL(vid.src);
+  vid.hidden = false; $("#vidMeta").hidden = false;
+  vid.src = URL.createObjectURL(f); vid.load();
+  status(`Carregando o vídeo… (${fileInfo(f)})`);
+  clearTimeout(openFile.to);
+  openFile.to = setTimeout(()=>{ if(!vid.videoWidth) status(`O vídeo ainda não abriu depois de 20 s (${fileInfo(curFile)}). Se for muito grande, corte um trecho menor no celular, ou abra este app no Chrome.`,"err"); }, 20000);
+}
+function tryDataUrl(){
+  if(triedData || !curFile || curFile.size > 350*1048576) return false;
+  triedData = true; status("Tentando outro jeito de abrir o vídeo…");
+  const r = new FileReader();
+  r.onload = () => { vid.src = r.result; vid.load(); };
+  r.onerror = () => status("Não deu para ler o arquivo do vídeo.","err");
+  r.readAsDataURL(curFile); return true;
+}
+$("#file").addEventListener("change", e => openFile(e.target.files[0]));
+$("#pick").addEventListener("click", () => {
+  const inp = $("#file");
+  try{ if(inp.showPicker) inp.showPicker(); else inp.click(); }
+  catch{ try{ inp.click(); }catch{} }
+  setTimeout(()=>{ if(!curFile) status("Se a galeria não abriu, toque no campo \"Escolher arquivo\" logo abaixo do botão, ou tente pelo Chrome."); }, 1500);
+});
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop", e => openFile(e.dataTransfer.files[0]));
+vid.addEventListener("loadedmetadata", () => {
+  clearTimeout(openFile.to);
+  const d = vid.duration;
+  $("#metaTxt").textContent = `${fmt(d)} · ${vid.videoWidth}×${vid.videoHeight}`;
+  $("#t0").value = 0; $("#t1").value = Math.floor(d*10)/10; $("#t1").max = d; $("#t0").max = d;
+  $("#go").disabled = false; status(""); estimate();
+});
+vid.addEventListener("error", () => {
+  const code = vid.error ? vid.error.code : 0;
+  if(code !== 4 && tryDataUrl()) return;
+  if(code === 4 && !triedData && tryDataUrl()) return;
+  clearTimeout(openFile.to);
+  const why = code === 4
+    ? "O formato do vídeo não é aceito por este navegador. Vídeo de iPhone em HEVC costuma dar isso: no iPhone, vá em Ajustes → Câmera → Formatos → \"Mais compatível\" e grave de novo, ou abra este app no Safari. No Android, grave em H.264 (não H.265/HEVC)."
+    : code === 2 ? "Falhou ao ler o arquivo. Tente de novo, ou corte o vídeo em partes menores."
+    : code === 3 ? "O vídeo abriu, mas não deu para decodificar. Tente outro navegador (Chrome)."
+    : "O navegador não conseguiu abrir este vídeo. Tente outro navegador (Chrome).";
+  status(`${why} (${curFile?fileInfo(curFile):""} · erro ${code})`,"err");
+});
+$("#setStart").addEventListener("click", ()=>{ $("#t0").value = vid.currentTime.toFixed(1); estimate(); });
+$("#setEnd").addEventListener("click", ()=>{ $("#t1").value = vid.currentTime.toFixed(1); estimate(); });
+["iv","t0","t1"].forEach(id=>$("#"+id).addEventListener("input",estimate));
+function estimate(){
+  const iv = parseFloat($("#iv").value)||1, a = parseFloat($("#t0").value)||0, b = parseFloat($("#t1").value)||0;
+  $("#est").textContent = b>a ? `≈ ${Math.floor((b-a)/iv)+1} quadros` : "";
+}
+
+/* ---------- captura ---------- */
+const work = document.createElement("canvas"), wctx = work.getContext("2d", { willReadFrequently:true });
+const small = document.createElement("canvas"), sctx = small.getContext("2d", { willReadFrequently:true });
+function seek(t){ return new Promise((res,rej)=>{ const to = setTimeout(()=>{ vid.removeEventListener("seeked",ok); rej(new Error("seek")); }, 8000);
+  function ok(){ clearTimeout(to); vid.removeEventListener("seeked",ok);
+    if(vid.requestVideoFrameCallback){ let done=false; vid.requestVideoFrameCallback(()=>{ if(!done){done=true;res();} }); setTimeout(()=>{ if(!done){done=true;res();} },250); } else res(); }
+  vid.addEventListener("seeked",ok); vid.currentTime = Math.min(t, Math.max(0, vid.duration-0.05)); }); }
+function sharpness(){ // variance of Laplacian on a 320px grayscale copy
+  const W = 320, H = Math.max(1, Math.round(W*vid.videoHeight/vid.videoWidth));
+  small.width = W; small.height = H; sctx.drawImage(vid,0,0,W,H);
+  const d = sctx.getImageData(0,0,W,H).data, g = new Float32Array(W*H);
+  for(let i=0,j=0;i<d.length;i+=4,j++) g[j] = .299*d[i]+.587*d[i+1]+.114*d[i+2];
+  let s=0, s2=0, n=0;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const k=y*W+x; const l = 4*g[k]-g[k-1]-g[k+1]-g[k-W]-g[k+W]; s+=l; s2+=l*l; n++; }
+  const mean = s/n; const varL = s2/n-mean*mean;
+  const sig = new Float32Array(16*9); // tiny signature for duplicate check
+  for(let y=0;y<9;y++) for(let x=0;x<16;x++){ sig[y*16+x] = g[Math.floor((y+.5)*H/9)*W+Math.floor((x+.5)*W/16)]; }
+  return { varL, sig };
+}
+function diff(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=Math.abs(a[i]-b[i]); return s/a.length; }
+async function grab(t){
+  const maxw = parseInt($("#maxw").value)||0;
+  const scale = maxw && vid.videoWidth>maxw ? maxw/vid.videoWidth : 1;
+  const W = Math.round(vid.videoWidth*scale), H = Math.round(vid.videoHeight*scale);
+  work.width = W; work.height = H; wctx.drawImage(vid,0,0,W,H);
+  const { varL, sig } = sharpness();
+  const blob = await new Promise(r=>work.toBlob(r,"image/jpeg",parseFloat($("#q").value)||0.9));
+  const tc = document.createElement("canvas"); tc.width = 360; tc.height = Math.round(360*H/W); tc.getContext("2d").drawImage(work,0,0,tc.width,tc.height);
+  const thumbBlob = await new Promise(r=>tc.toBlob(r,"image/jpeg",0.7));
+  return { id: nextId++, t, blob, thumb: URL.createObjectURL(thumbBlob), w:W, h:H, sharp: varL, sig, sel:false, label:"" };
+}
+function scoreAll(){ // fixed scale: Laplacian variance (320px gray) ~15 = very blurry, ~1500 = very sharp
+  const lo = Math.log1p(15), hi = Math.log1p(1500);
+  frames.forEach(f=>{ f.score = Math.round(Math.max(0, Math.min(100, (Math.log1p(f.sharp)-lo)/(hi-lo)*100))); });
+}
+$("#go").addEventListener("click", async () => {
+  if(running) return;
+  const iv = Math.max(0.2, parseFloat($("#iv").value)||1), a = Math.max(0, parseFloat($("#t0").value)||0), b = Math.min(vid.duration, parseFloat($("#t1").value)||vid.duration);
+  if(!(b>a)){ status("O fim precisa ser depois do início.","err"); return; }
+  running = true; cancel = false; vid.pause(); $("#go").disabled = true; $("#stop").hidden = false; $("#bar").hidden = false;
+  const dedup = $("#dedup").checked; let last = frames.length ? frames[frames.length-1].sig : null, added = 0, skipped = 0;
+  const total = Math.floor((b-a)/iv)+1;
+  try{
+    for(let i=0;i<total && !cancel;i++){
+      const t = a + i*iv;
+      await seek(t);
+      const f = await grab(t);
+      if(dedup && last && diff(f.sig,last) < 3.2){ URL.revokeObjectURL(f.thumb); skipped++; }
+      else { frames.push(f); last = f.sig; added++; }
+      $("#barFill").style.width = ((i+1)/total*100).toFixed(1)+"%";
+      status(`Extraindo… ${i+1} de ${total} · ${added} guardados${skipped?` · ${skipped} repetidos pulados`:""}`);
+      if(i%6===5){ scoreAll(); render(); }
+    }
+    frames.sort((x,y)=>x.t-y.t); scoreAll(); autoSelect(); render();
+    status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}. As nítidas já estão marcadas.`,"ok");
+  }catch(e){
+    status("Não deu para ler alguns pontos do vídeo. Tente um intervalo maior ou outro navegador (Chrome).","err");
+  }finally{ running=false; $("#go").disabled=false; $("#stop").hidden=true; setTimeout(()=>$("#bar").hidden=true,800); }
+});
+$("#stop").addEventListener("click", ()=>{ cancel = true; });
+async function captureNow(){
+  if(!vid.src || running || !vid.videoWidth) return;
+  const f = await grab(vid.currentTime); f.sel = true; frames.push(f); frames.sort((x,y)=>x.t-y.t); scoreAll(); render();
+  status(`Quadro de ${fmt(f.t)} capturado.`,"ok");
+}
+$("#capBtn").addEventListener("click", captureNow);
+addEventListener("keydown", e => {
+  if(!$("#viewer").hidden){ if(e.key==="Escape") closeViewer(); if(e.key==="ArrowRight") step(1); if(e.key==="ArrowLeft") step(-1); if(e.key===" "||e.key==="Enter"){ e.preventDefault(); toggleView(); } return; }
+  if((e.key==="c"||e.key==="C") && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) captureNow();
+});
+
+/* ---------- folha de contato ---------- */
+function band(s){ return s>=parseInt($("#minSharp").value) ? (s>=75?"good":"mid") : "bad"; }
+function bandTxt(s){ const b=band(s); return b==="good"?"Nítida":b==="mid"?"Boa":"Borrada"; }
+function autoSelect(){ const m = parseInt($("#minSharp").value); frames.forEach(f=>f.sel = f.score>=m); }
+function render(){
+  const box = $("#sheet"); box.replaceChildren();
+  const nSel = frames.filter(f=>f.sel).length;
+  $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
+  $("#zip").disabled = !nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
+  frames.forEach((f,i) => {
+    const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
+    const th = document.createElement("button"); th.className="th"; th.setAttribute("aria-label",`Ampliar quadro de ${fmt(f.t)}`);
+    const img = document.createElement("img"); img.src=f.thumb; img.alt=""; img.loading="lazy"; th.append(img); th.addEventListener("click",()=>openViewer(i));
+    const fb = document.createElement("div"); fb.className="fb";
+    const top = document.createElement("div"); top.className="top";
+    const tc = document.createElement("span"); tc.className="tc"; tc.textContent = fmt(f.t);
+    const sh = document.createElement("span"); sh.className="sharp"; const dot=document.createElement("i"); dot.className="dot "+band(f.score??0);
+    sh.append(dot, document.createTextNode(`${bandTxt(f.score??0)} ${f.score??"–"}`));
+    top.append(tc, sh);
+    const chk = document.createElement("label"); chk.className="chk";
+    const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=f.sel; cb.id="cb"+f.id;
+    cb.addEventListener("change",()=>{ f.sel=cb.checked; card.classList.toggle("sel",f.sel); updateCounts(); });
+    chk.append(cb, document.createTextNode("Usar esta"));
+    const lab = document.createElement("input"); lab.type="text"; lab.placeholder="Nome do lugar"; lab.value=f.label; lab.id="lb"+f.id; lab.setAttribute("aria-label",`Nome do lugar do quadro ${fmt(f.t)}`);
+    lab.addEventListener("input",()=>{ f.label = lab.value; });
+    fb.append(top, chk, lab); card.append(th, fb); box.append(card);
+  });
+}
+function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+$("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
+$("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
+$("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
+$("#selNone").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=false); render(); });
+$("#delUnsel").addEventListener("click", e=>{
+  const b = e.currentTarget, n = frames.filter(f=>!f.sel).length; if(!n) return;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent=`Confirmar: apagar ${n}`; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Apagar desmarcadas"; },4000); return; }
+  b.dataset.armed=""; b.textContent="Apagar desmarcadas";
+  for(let i=frames.length-1;i>=0;i--) if(!frames[i].sel){ URL.revokeObjectURL(frames[i].thumb); frames.splice(i,1); }
+  render();
+});
+$("#applyLabel").addEventListener("click", ()=>{ const v=$("#bulkLabel").value.trim(); frames.forEach(f=>{ if(f.sel) f.label=v; }); render(); });
+
+/* ---------- visualizador ---------- */
+function openViewer(i){ viewIdx=i; $("#viewer").hidden=false; showView(); $("#vClose").focus(); }
+function closeViewer(){ $("#viewer").hidden=true; const el = document.getElementById("cb"+(frames[viewIdx]?.id)); el && el.focus(); render(); }
+function showView(){ const f=frames[viewIdx]; if(!f) return closeViewer();
+  if($("#vImg").dataset.url) URL.revokeObjectURL($("#vImg").dataset.url);
+  const u = URL.createObjectURL(f.blob); $("#vImg").src=u; $("#vImg").dataset.url=u;
+  $("#vInfo").textContent = `${fmt(f.t)} · ${f.w}×${f.h} · ${bandTxt(f.score??0)} (${f.score??"–"})${f.label?" · "+f.label:""} · ${viewIdx+1}/${frames.length}`;
+  $("#vSel").textContent = f.sel ? "Desmarcar" : "Marcar"; }
+function step(d){ viewIdx = Math.max(0,Math.min(frames.length-1,viewIdx+d)); showView(); }
+function toggleView(){ const f=frames[viewIdx]; if(f){ f.sel=!f.sel; showView(); updateCounts(); } }
+$("#vPrev").addEventListener("click",()=>step(-1)); $("#vNext").addEventListener("click",()=>step(1));
+$("#vSel").addEventListener("click",toggleView); $("#vClose").addEventListener("click",closeViewer);
+
+/* ---------- exportar ---------- */
+function slug(s){ return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60); }
+$("#prefix").addEventListener("input",e=>e.target.dataset.touched="1");
+$("#zip").addEventListener("click", async () => {
+  const st = $("#zst"), sel = frames.filter(f=>f.sel);
+  if(!sel.length) return;
+  if(!window.JSZip){ show(st,"O compactador não carregou. Recarregue a página.","err"); return; }
+  const btn=$("#zip"); btn.disabled=true; show(st,"Montando o ZIP…");
+  try{
+    const zip = new JSZip(), prefix = slug($("#prefix").value)||"quadros", byFolder = $("#folders").checked;
+    const used = {};
+    sel.forEach((f,i)=>{
+      const place = slug(f.label) || "sem-nome";
+      const name = `${prefix}_${place}_${String(i+1).padStart(3,"0")}_${fmt(f.t).replace(/:/g,"m").replace(".","s")}.jpg`;
+      zip.file(byFolder ? `${place}/${name}` : name, f.blob);
+      used[place] = (used[place]||0)+1;
+    });
+    zip.file("LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+
+      `\n\nFoto -> 3D (Hunyuan3D / TRELLIS / Tripo): envie 1 foto por prédio, a mais nítida.\nFotogrametria (RealityScan / Polycam): envie todas as fotos da mesma pasta juntas.\n`);
+    const blob = await zip.generateAsync({ type:"blob", compression:"STORE" }, m => show(st,`Montando o ZIP… ${Math.round(m.percent)}%`));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${prefix}_quadros.zip`;
+    document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+    show(st,`Baixado: ${sel.length} fotos. Procure o ZIP na pasta Downloads.`,"ok");
+  }catch(e){
+    const m = { declined:"Download cancelado.", too_large:"O ZIP ficou grande demais para este aparelho. Desmarque algumas fotos ou escolha qualidade Leve e largura 1920.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche ele e tente de novo." }[e.code] || ("Não deu para baixar: "+(e.message||e.code||e));
+    show(st,m,e.code==="declined"?"":"err");
+  }finally{ btn.disabled=false; }
+});
+
+/* ---------- utilidades ---------- */
+function fmt(t){ const m=Math.floor(t/60), s=(t%60); return `${String(m).padStart(2,"0")}:${s.toFixed(1).padStart(4,"0")}`; }
+function show(node,msg,kind){ node.hidden=!msg; node.textContent=msg||""; node.className="status"+(kind?" "+kind:""); }
+function status(msg,kind){ show($("#st"),msg,kind); }
+
+let saved = "foto3d"; try{ saved = localStorage.getItem("preset") || "foto3d"; }catch{}
+applyPreset(PRESETS[saved] ? saved : "foto3d");
+
+</script>
+
+</body>
+</html>
