@@ -138,8 +138,8 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
         <div class="field"><label class="label" for="iv">1 quadro a cada (s)</label><input type="number" id="iv" min="0.2" max="30" step="0.1" value="2"></div>
         <div class="field"><label class="label" for="t0">Começar em (s)</label><input type="number" id="t0" min="0" step="0.1" value="0"></div>
         <div class="field"><label class="label" for="t1">Terminar em (s)</label><input type="number" id="t1" min="0" step="0.1" value="0"></div>
-        <div class="field"><label class="label" for="maxw">Largura máx. (px)</label>
-          <select id="maxw"><option value="0">Original</option><option value="1920">1920</option><option value="1280">1280</option></select></div>
+        <div class="field"><label class="label" for="maxw">Tamanho máx. (lado maior)</label>
+          <select id="maxw"><option value="0">Original (pesado)</option><option value="1920">1920 px</option><option value="1600" selected>1600 px (recomendado)</option><option value="1280">1280 px (celular fraco)</option></select></div>
       </div>
       <label class="chk"><input type="checkbox" id="dedup" checked> Pular quadros quase iguais (câmera parada)</label>
       <label class="chk"><input type="checkbox" id="motoOn" checked> Filmei de moto: tirar a moto (corta o guidão/painel, ou descarta o quadro se a moto tomar a imagem)</label>
@@ -362,7 +362,7 @@ function sharpness(){ // variance of Laplacian on a 320px grayscale copy
 function diff(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=Math.abs(a[i]-b[i]); return s/a.length; }
 async function grab(t){
   const maxw = parseInt($("#maxw").value)||0;
-  const scale = maxw && vid.videoWidth>maxw ? maxw/vid.videoWidth : 1;
+  const big = Math.max(vid.videoWidth, vid.videoHeight), scale = maxw && big>maxw ? maxw/big : 1;
   const W = Math.round(vid.videoWidth*scale), H = Math.round(vid.videoHeight*scale);
   work.width = W; work.height = H; wctx.drawImage(vid,0,0,W,H);
   const { varL, sig, sig2, rS, rS2, rW } = sharpness();
@@ -420,7 +420,7 @@ $("#go").addEventListener("click", async () => {
     const nm=frames.filter(f=>f.moto&&f.keep===0).length, nc=frames.filter(f=>f.moto&&f.keep>0).length;
     status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}${$("#motoOn").checked&&(nm||nc)?` · moto: ${nc} cortados, ${nm} descartados`:""}. As nítidas já estão marcadas.`,"ok");
   }catch(e){
-    status("Não deu para ler alguns pontos do vídeo. Tente um intervalo maior ou outro navegador (Chrome).","err");
+    status( /mem|allocation|out of/i.test(String(e&&e.message)) ? "O celular ficou sem memória durante a extração. Use um intervalo maior (ex.: 3 s), \"Tamanho máx.\" 1280 px, ou um trecho menor do vídeo." : "Não deu para ler alguns pontos do vídeo. Tente um intervalo maior ou outro navegador (Chrome).","err");
   }finally{ running=false; $("#go").disabled=false; $("#stop").hidden=true; setTimeout(()=>$("#bar").hidden=true,800); }
 });
 $("#stop").addEventListener("click", ()=>{ cancel = true; });
@@ -543,22 +543,31 @@ async function saveBlob(name, blob){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
 async function contactSheet(sel, blobs){
-  const n=Math.min(sel.length, 36), cols = n<=4?2 : n<=9?3 : n<=16?4 : n<=25?5 : 6, cellW=520, pad=10, labH=34;
-  const bmps=[]; for(let i=0;i<n;i++) bmps.push(await createImageBitmap(blobs[i]));
-  const cellH = Math.round(cellW * Math.max(...bmps.map(b=>b.height/b.width)));
-  const rows=Math.ceil(n/cols), titleH=60;
+  /* leve para celular: a folha inteira fica abaixo de ~6 milhões de pixels e cada foto é aberta e fechada uma de cada vez */
+  const n=Math.min(sel.length, 36), cols = n<=4?2 : n<=9?3 : n<=16?4 : n<=25?5 : 6, pad=8, labH=26, titleH=46;
+  const ratio = Math.max(...sel.slice(0,n).map(f=>f.h&&f.w ? (f.h*keepOrOne(f))/f.w : 0.6), 0.5);
+  const rows=Math.ceil(n/cols), budget=6e6;
+  let cellW = Math.floor(Math.sqrt(budget/(cols*rows*ratio*1.15))); cellW = Math.max(140, Math.min(420, cellW));
+  const cellH = Math.round(cellW*ratio);
   const c=document.createElement("canvas"); c.width=cols*(cellW+pad)+pad; c.height=titleH+rows*(cellH+labH+pad)+pad;
   const x=c.getContext("2d"); x.fillStyle="#ffffff"; x.fillRect(0,0,c.width,c.height);
-  x.fillStyle="#22201d"; x.font="bold 30px Barlow, Arial, sans-serif"; x.fillText(($("#bkCity")?.value||$("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 40);
-  bmps.forEach((b,i)=>{ const cx=pad+(i%cols)*(cellW+pad), cy=titleH+Math.floor(i/cols)*(cellH+labH+pad);
+  x.fillStyle="#22201d"; x.font="bold 24px Barlow, Arial, sans-serif"; x.fillText(($("#bkCity")?.value||$("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 32);
+  for(let i=0;i<n;i++){
+    const b = await createImageBitmap(blobs[i]);
+    const cx=pad+(i%cols)*(cellW+pad), cy=titleH+Math.floor(i/cols)*(cellH+labH+pad);
     const s=Math.min(cellW/b.width, cellH/b.height), w=b.width*s, h=b.height*s;
     x.fillStyle="#eeeae4"; x.fillRect(cx,cy,cellW,cellH); x.drawImage(b, cx+(cellW-w)/2, cy+(cellH-h)/2, w, h);
-    x.fillStyle="#b4471f"; x.fillRect(cx,cy,44,30); x.fillStyle="#fff"; x.font="bold 20px Barlow, Arial, sans-serif"; x.fillText(String(i+1), cx+10, cy+22);
-    x.fillStyle="#22201d"; x.font="18px Barlow, Arial, sans-serif"; x.fillText(`${sel[i].label||"sem nome"} · ${fmt(sel[i].t)}`, cx, cy+cellH+24);
-    b.close&&b.close(); });
-  return await new Promise(r=>c.toBlob(r,"image/jpeg",0.88));
+    b.close&&b.close();
+    x.fillStyle="#b4471f"; x.fillRect(cx,cy,36,24); x.fillStyle="#fff"; x.font="bold 16px Barlow, Arial, sans-serif"; x.fillText(String(i+1), cx+8, cy+18);
+    x.fillStyle="#22201d"; x.font="14px Barlow, Arial, sans-serif"; x.fillText(`${sel[i].label||"sem nome"} · ${fmt(sel[i].t)}`, cx, cy+cellH+18);
+  }
+  const out = await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+  c.width=1; c.height=1; /* libera a memória do canvas */
+  if(!out) throw new Error("memória");
+  return out;
 }
-function expErr(e){ return { declined:"Download cancelado.", too_large:"Ficou grande demais. Desmarque algumas fotos ou escolha qualidade Leve.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche e tente de novo.", AbortError:"Compartilhamento cancelado." }[e.code||e.name] || ("Não deu certo: "+(e.message||e.code||e)); }
+function keepOrOne(f){ const k=keepOf(f); return k>0?k:1; }
+function expErr(e){ if(/mem|quota|allocation|out of/i.test(String(e&&(e.message||e.name)||e))) return "O celular ficou sem memória. Desmarque fotos (mande de 10 em 10), escolha \"Tamanho máx.\" 1280 px no passo 02 e extraia de novo, e feche outros apps."; return { declined:"Download cancelado.", too_large:"Ficou grande demais. Desmarque algumas fotos ou escolha qualidade Leve.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche e tente de novo.", AbortError:"Compartilhamento cancelado." }[e.code||e.name] || ("Não deu certo: "+(e.message||e.code||e)); }
 $("#sheetBtn").addEventListener("click", async()=>{
   const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return; $("#sheetBtn").disabled=true; show(st,"Montando a folha de contato…");
   try{ const blobs=await croppedBlobs(sel.slice(0,36)); const sheet=await contactSheet(sel, blobs);
