@@ -65,7 +65,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .frame{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
 .frame.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .frame .th{aspect-ratio:16/9;max-width:100%;background:#000;border:0;padding:0;cursor:zoom-in;display:block;width:100%}
+.frame .th{position:relative;overflow:hidden}
 .frame .th img{width:100%;height:100%;object-fit:cover;display:block}
+.frame .cut{position:absolute;left:0;right:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(0,0,0,.55) 0 6px,rgba(0,0,0,.35) 6px 12px);border-top:2px dashed #e8774a;color:#fff;font-size:11px;display:flex;align-items:flex-start;justify-content:center;padding-top:2px}
+.badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);padding:1px 6px;color:var(--muted)}
+.badge.moto{border-color:var(--bad);color:var(--bad)}
+.badge.cut{border-color:var(--mid);color:var(--mid)}
 .frame .fb{padding:8px;display:flex;flex-direction:column;gap:6px}
 .frame .top{display:flex;justify-content:space-between;align-items:center;gap:6px}
 .tc{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
@@ -130,6 +135,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
           <select id="maxw"><option value="0">Original</option><option value="1920">1920</option><option value="1280">1280</option></select></div>
       </div>
       <label class="chk"><input type="checkbox" id="dedup" checked> Pular quadros quase iguais (câmera parada)</label>
+      <label class="chk"><input type="checkbox" id="motoOn" checked> Filmei de moto: tirar a moto (corta o guidão/painel, ou descarta o quadro se a moto tomar a imagem)</label>
+      <div class="fields"><div class="field"><label class="label" for="cropB">Cortar embaixo sempre (%)</label><input type="number" id="cropB" min="0" max="60" step="5" value="0"></div></div>
       <div class="row"><button class="btn pri" id="go" disabled>Extrair quadros</button><button class="btn" id="stop" hidden>Parar</button><span class="meta" id="est"></span></div>
       <div class="bar" id="bar" hidden><i id="barFill"></i></div>
       <div id="st" class="status" hidden></div>
@@ -297,12 +304,14 @@ function sharpness(){ // variance of Laplacian on a 320px grayscale copy
   small.width = W; small.height = H; sctx.drawImage(vid,0,0,W,H);
   const d = sctx.getImageData(0,0,W,H).data, g = new Float32Array(W*H);
   for(let i=0,j=0;i<d.length;i+=4,j++) g[j] = .299*d[i]+.587*d[i+1]+.114*d[i+2];
-  let s=0, s2=0, n=0;
-  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const k=y*W+x; const l = 4*g[k]-g[k-1]-g[k+1]-g[k-W]-g[k+W]; s+=l; s2+=l*l; n++; }
+  let s=0, s2=0, n=0; const rS=new Float64Array(H), rS2=new Float64Array(H);
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const k=y*W+x; const l = 4*g[k]-g[k-1]-g[k+1]-g[k-W]-g[k+W]; s+=l; s2+=l*l; n++; rS[y]+=l; rS2[y]+=l*l; }
   const mean = s/n; const varL = s2/n-mean*mean;
+  const sig2 = new Float32Array(64*36);
+  for(let y=0;y<36;y++) for(let x=0;x<64;x++){ let a=0; const y0=Math.floor(y*H/36), y1=Math.max(y0+1,Math.floor((y+1)*H/36)), x0=Math.floor(x*W/64), x1=Math.max(x0+1,Math.floor((x+1)*W/64)); let c=0; for(let yy=y0;yy<y1;yy+=2) for(let xx=x0;xx<x1;xx+=2){ a+=g[yy*W+xx]; c++; } sig2[y*64+x]=a/c; }
   const sig = new Float32Array(16*9); // tiny signature for duplicate check
   for(let y=0;y<9;y++) for(let x=0;x<16;x++){ sig[y*16+x] = g[Math.floor((y+.5)*H/9)*W+Math.floor((x+.5)*W/16)]; }
-  return { varL, sig };
+  return { varL, sig, sig2, rS, rS2, rW:W-2 };
 }
 function diff(a,b){ let s=0; for(let i=0;i<a.length;i++) s+=Math.abs(a[i]-b[i]); return s/a.length; }
 async function grab(t){
@@ -310,15 +319,38 @@ async function grab(t){
   const scale = maxw && vid.videoWidth>maxw ? maxw/vid.videoWidth : 1;
   const W = Math.round(vid.videoWidth*scale), H = Math.round(vid.videoHeight*scale);
   work.width = W; work.height = H; wctx.drawImage(vid,0,0,W,H);
-  const { varL, sig } = sharpness();
+  const { varL, sig, sig2, rS, rS2, rW } = sharpness();
   const blob = await new Promise(r=>work.toBlob(r,"image/jpeg",parseFloat($("#q").value)||0.9));
   const tc = document.createElement("canvas"); tc.width = 360; tc.height = Math.round(360*H/W); tc.getContext("2d").drawImage(work,0,0,tc.width,tc.height);
   const thumbBlob = await new Promise(r=>tc.toBlob(r,"image/jpeg",0.7));
-  return { id: nextId++, t, blob, thumb: URL.createObjectURL(thumbBlob), w:W, h:H, sharp: varL, sig, sel:false, label:"" };
+  return { id: nextId++, t, blob, thumb: URL.createObjectURL(thumbBlob), w:W, h:H, sharp: varL, sig, sig2, rS, rS2, rW, keep:1, moto:false, sel:false, label:"" };
 }
 function scoreAll(){ // fixed scale: Laplacian variance (320px gray) ~15 = very blurry, ~1500 = very sharp
   const lo = Math.log1p(15), hi = Math.log1p(1500);
-  frames.forEach(f=>{ f.score = Math.round(Math.max(0, Math.min(100, (Math.log1p(f.sharp)-lo)/(hi-lo)*100))); });
+  frames.forEach(f=>{ let v=f.sharp; const k=keepOf(f);
+    if(f.rS && k<1){ const H=f.rS.length, yEnd=Math.max(2,Math.floor(H*k)); let s=0,s2=0,n=0; for(let y=1;y<yEnd&&y<H-1;y++){ s+=f.rS[y]; s2+=f.rS2[y]; n+=f.rW; } if(n){ const m=s/n; v=s2/n-m*m; } }
+    f.score = Math.round(Math.max(0, Math.min(100, (Math.log1p(v)-lo)/(hi-lo)*100))); });
+}
+function keepOf(f){ const man = 1-(Math.min(60,Math.max(0,parseFloat($("#cropB").value)||0))/100); return Math.min(man, $("#motoOn").checked ? (f.keep ?? 1) : 1); }
+/* moto detection: pixels that stay the same in neighbouring frames while the rest of the picture moves */
+function detectMoto(){
+  const W=64,H=36;
+  frames.forEach(f=>{ f.moto=false; f.keep=1; });
+  for(let i=0;i<frames.length;i++){
+    const f=frames[i], nb=[frames[i-1],frames[i+1]].filter(o=>o&&o.sig2&&Math.abs(o.t-f.t)<=4);
+    if(!f.sig2||!nb.length) continue;
+    const fixed=new Uint8Array(W*H); let moving=0, nf=0;
+    const d=f.sig2.map((v,k)=>Math.max(...nb.map(o=>Math.abs(v-o.sig2[k]))));
+    const sorted=Float32Array.from(d).sort(); const mov=sorted[Math.floor(sorted.length*0.85)];
+    if(mov<10) continue; /* parado: nao da para separar a moto do resto */
+    for(let k=0;k<d.length;k++){ if(d[k]<Math.max(4,mov*0.12)){ fixed[k]=1; nf++; } }
+    if(nf/(W*H) < 0.08) continue;
+    const rowFrac=new Float32Array(H); for(let y=0;y<H;y++){ let c=0; for(let x=0;x<W;x++) c+=fixed[y*W+x]; rowFrac[y]=c/W; }
+    let top=H; for(let y=H-1;y>=0;y--){ if(rowFrac[y]>0.25) top=y; else if(y<H-1 && rowFrac[y]<0.1 && top<H) break; }
+    const fixedAbove=[...rowFrac.slice(0,Math.floor(H*0.5))].reduce((a,b)=>a+b,0)/Math.floor(H*0.5);
+    f.moto=true;
+    if(top<H && top/H>=0.45 && fixedAbove<0.2){ f.keep=Math.max(0.45,(top-1)/H); } else { f.keep=0; }
+  }
 }
 $("#go").addEventListener("click", async () => {
   if(running) return;
@@ -338,8 +370,9 @@ $("#go").addEventListener("click", async () => {
       status(`Extraindo… ${i+1} de ${total} · ${added} guardados${skipped?` · ${skipped} repetidos pulados`:""}`);
       if(i%6===5){ scoreAll(); render(); }
     }
-    frames.sort((x,y)=>x.t-y.t); scoreAll(); autoSelect(); render();
-    status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}. As nítidas já estão marcadas.`,"ok");
+    frames.sort((x,y)=>x.t-y.t); detectMoto(); scoreAll(); autoSelect(); render();
+    const nm=frames.filter(f=>f.moto&&f.keep===0).length, nc=frames.filter(f=>f.moto&&f.keep>0).length;
+    status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}${$("#motoOn").checked&&(nm||nc)?` · moto: ${nc} cortados, ${nm} descartados`:""}. As nítidas já estão marcadas.`,"ok");
   }catch(e){
     status("Não deu para ler alguns pontos do vídeo. Tente um intervalo maior ou outro navegador (Chrome).","err");
   }finally{ running=false; $("#go").disabled=false; $("#stop").hidden=true; setTimeout(()=>$("#bar").hidden=true,800); }
@@ -347,7 +380,7 @@ $("#go").addEventListener("click", async () => {
 $("#stop").addEventListener("click", ()=>{ cancel = true; });
 async function captureNow(){
   if(!vid.src || running || !vid.videoWidth) return;
-  const f = await grab(vid.currentTime); f.sel = true; frames.push(f); frames.sort((x,y)=>x.t-y.t); scoreAll(); render();
+  const f = await grab(vid.currentTime); f.sel = true; frames.push(f); frames.sort((x,y)=>x.t-y.t); detectMoto(); scoreAll(); render();
   status(`Quadro de ${fmt(f.t)} capturado.`,"ok");
 }
 $("#capBtn").addEventListener("click", captureNow);
@@ -359,7 +392,9 @@ addEventListener("keydown", e => {
 /* ---------- folha de contato ---------- */
 function band(s){ return s>=parseInt($("#minSharp").value) ? (s>=75?"good":"mid") : "bad"; }
 function bandTxt(s){ const b=band(s); return b==="good"?"Nítida":b==="mid"?"Boa":"Borrada"; }
-function autoSelect(){ const m = parseInt($("#minSharp").value); frames.forEach(f=>f.sel = f.score>=m); }
+function autoSelect(){ const m = parseInt($("#minSharp").value); frames.forEach(f=>f.sel = f.score>=m && keepOf(f)>0); }
+$("#motoOn").addEventListener("change",()=>{ scoreAll(); autoSelect(); render(); });
+$("#cropB").addEventListener("input",()=>{ scoreAll(); render(); });
 function render(){
   const box = $("#sheet"); box.replaceChildren();
   const nSel = frames.filter(f=>f.sel).length;
@@ -370,19 +405,22 @@ function render(){
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
     const th = document.createElement("button"); th.className="th"; th.setAttribute("aria-label",`Ampliar quadro de ${fmt(f.t)}`);
     const img = document.createElement("img"); img.src=f.thumb; img.alt=""; img.loading="lazy"; th.append(img); th.addEventListener("click",()=>openViewer(i));
+    const kp = keepOf(f);
+    if(kp<1){ const cut=document.createElement("div"); cut.className="cut"; cut.style.height=((1-kp)*100).toFixed(0)+"%"; cut.textContent = kp<=0 ? "moto na frente: descartado" : "cortado"; th.append(cut); }
     const fb = document.createElement("div"); fb.className="fb";
     const top = document.createElement("div"); top.className="top";
     const tc = document.createElement("span"); tc.className="tc"; tc.textContent = fmt(f.t);
     const sh = document.createElement("span"); sh.className="sharp"; const dot=document.createElement("i"); dot.className="dot "+band(f.score??0);
     sh.append(dot, document.createTextNode(`${bandTxt(f.score??0)} ${f.score??"–"}`));
     top.append(tc, sh);
+    let badge=null; if($("#motoOn").checked && f.moto){ badge=document.createElement("span"); badge.className="badge "+(f.keep>0?"cut":"moto"); badge.textContent = f.keep>0 ? "Moto cortada" : "Moto na frente"; }
     const chk = document.createElement("label"); chk.className="chk";
     const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=f.sel; cb.id="cb"+f.id;
     cb.addEventListener("change",()=>{ f.sel=cb.checked; card.classList.toggle("sel",f.sel); updateCounts(); });
     chk.append(cb, document.createTextNode("Usar esta"));
     const lab = document.createElement("input"); lab.type="text"; lab.placeholder="Nome do lugar"; lab.value=f.label; lab.id="lb"+f.id; lab.setAttribute("aria-label",`Nome do lugar do quadro ${fmt(f.t)}`);
     lab.addEventListener("input",()=>{ f.label = lab.value; });
-    fb.append(top, chk, lab); card.append(th, fb); box.append(card);
+    fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
 function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
@@ -405,7 +443,7 @@ function closeViewer(){ $("#viewer").hidden=true; const el = document.getElement
 function showView(){ const f=frames[viewIdx]; if(!f) return closeViewer();
   if($("#vImg").dataset.url) URL.revokeObjectURL($("#vImg").dataset.url);
   const u = URL.createObjectURL(f.blob); $("#vImg").src=u; $("#vImg").dataset.url=u;
-  $("#vInfo").textContent = `${fmt(f.t)} · ${f.w}×${f.h} · ${bandTxt(f.score??0)} (${f.score??"–"})${f.label?" · "+f.label:""} · ${viewIdx+1}/${frames.length}`;
+  $("#vInfo").textContent = `${fmt(f.t)} · ${f.w}×${f.h} · ${bandTxt(f.score??0)} (${f.score??"–"})${f.label?" · "+f.label:""}${keepOf(f)<1?(keepOf(f)<=0?" · moto na frente":` · corta ${Math.round((1-keepOf(f))*100)}% de baixo`):""} · ${viewIdx+1}/${frames.length}`;
   $("#vSel").textContent = f.sel ? "Desmarcar" : "Marcar"; }
 function step(d){ viewIdx = Math.max(0,Math.min(frames.length-1,viewIdx+d)); showView(); }
 function toggleView(){ const f=frames[viewIdx]; if(f){ f.sel=!f.sel; showView(); updateCounts(); } }
@@ -423,10 +461,12 @@ $("#zip").addEventListener("click", async () => {
   try{
     const zip = new JSZip(), prefix = slug($("#prefix").value)||"quadros", byFolder = $("#folders").checked;
     const used = {};
+    const q = parseFloat($("#q").value)||0.9, outs = [];
+    for(const f of sel){ const k = keepOf(f); if(k>0 && k<1){ const bmp = await createImageBitmap(f.blob); const c=document.createElement("canvas"); c.width=bmp.width; c.height=Math.round(bmp.height*k); c.getContext("2d").drawImage(bmp,0,0); outs.push(await new Promise(r=>c.toBlob(r,"image/jpeg",q))); bmp.close&&bmp.close(); } else outs.push(f.blob); }
     sel.forEach((f,i)=>{
       const place = slug(f.label) || "sem-nome";
       const name = `${prefix}_${place}_${String(i+1).padStart(3,"0")}_${fmt(f.t).replace(/:/g,"m").replace(".","s")}.jpg`;
-      zip.file(byFolder ? `${place}/${name}` : name, f.blob);
+      zip.file(byFolder ? `${place}/${name}` : name, outs[i]);
       used[place] = (used[place]||0)+1;
     });
     zip.file("LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+
