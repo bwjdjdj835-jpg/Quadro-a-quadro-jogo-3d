@@ -380,9 +380,9 @@ $("#go").addEventListener("click", async () => {
       status(`Extraindo… ${i+1} de ${total} · ${added} guardados${skipped?` · ${skipped} repetidos pulados`:""}`);
       if(i%6===5){ scoreAll(); render(); }
     }
-    frames.sort((x,y)=>x.t-y.t); detectMoto(); scoreAll(); autoSelect(); render();
+    frames.sort((x,y)=>x.t-y.t); detectMoto(); scoreAll(); frames.forEach(f=>f.sel=true); render();
     const nm=frames.filter(f=>f.moto&&f.keep===0).length, nc=frames.filter(f=>f.moto&&f.keep>0).length;
-    status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}${$("#motoOn").checked&&(nm||nc)?` · moto: ${nc} cortados, ${nm} descartados`:""}. As nítidas já estão marcadas.`,"ok");
+    status(`${cancel?"Parado":"Pronto"}: ${added} quadros guardados${skipped?`, ${skipped} repetidos pulados`:""}${$("#motoOn").checked&&(nm||nc)?` · moto: ${nc} cortados, ${nm} descartados`:""}. Todas já estão marcadas para o ZIP. Use "Marcar só as nítidas" para filtrar.`,"ok");
   }catch(e){
     status( /mem|allocation|out of/i.test(String(e&&e.message)) ? "O celular ficou sem memória durante a extração. Use um intervalo maior (ex.: 3 s), \"Tamanho máx.\" 1280 px, ou um trecho menor do vídeo." : "Não deu para ler alguns pontos do vídeo. Tente um intervalo maior ou outro navegador (Chrome).","err");
   }finally{ running=false; $("#go").disabled=false; $("#stop").hidden=true; setTimeout(()=>$("#bar").hidden=true,800); }
