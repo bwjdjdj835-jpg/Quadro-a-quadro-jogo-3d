@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Extrator de Quadros 3D</title>
+<title>Quadro a Quadro · Personagens</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: a field-survey workbench — video on top, numbered steps, contact sheet of frames below */
+/* Layout: bancada de referência — vídeo no topo, passos numerados e folha de quadros embaixo */
 :root{
   --bg:#f4f1ec; --panel:#fffdf9; --ink:#22201d; --muted:#6f6860; --line:#ddd5cb;
   --accent:#b4471f; --accent-ink:#fff; --soft:#f3e2d8; --good:#2f7d4f; --mid:#b07a12; --bad:#b3332a;
@@ -114,10 +114,10 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 <div class="wrap">
   <header>
     <div>
-      <h1>Extrator de <span>Quadros 3D</span></h1>
-      <p class="sub">Transforma o vídeo da cidade em fotos boas para gerar os blocos 3D. Tudo roda no seu aparelho: o vídeo não é enviado para lugar nenhum.</p>
+      <h1>Quadro a Quadro <span>Personagens</span></h1>
+      <p class="sub">Tire do vídeo os melhores quadros de design de personagem (rosto, corpo inteiro, roupas, poses e cores) e baixe tudo em ZIP para alimentar a sua IA. Tudo roda no seu aparelho: o vídeo não é enviado para lugar nenhum.</p>
     </div>
-    <span class="meta" id="placeTag">Ministro Andreazza · RO</span>
+    <span class="meta" id="placeTag">Character design</span>
   </header>
 
   <div class="cols">
@@ -140,11 +140,11 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
     </section>
 
     <section class="step" aria-labelledby="h2s">
-      <h2 id="h2s"><span class="n">02</span>Para que são as fotos</h2>
+      <h2 id="h2s"><span class="n">02</span>Que tipo de quadros você quer</h2>
       <div class="presets" id="presets">
-        <button class="preset" data-p="foto3d" aria-pressed="true"><b>Foto → 3D</b><small>Hunyuan3D, TRELLIS, Tripo. Poucas fotos, só as mais nítidas, um prédio por foto.</small></button>
-        <button class="preset" data-p="fotogrametria" aria-pressed="false"><b>Fotogrametria</b><small>RealityScan, Polycam. Muitas fotos em sequência, com sobreposição.</small></button>
-        <button class="preset" data-p="ref" aria-pressed="false"><b>Referência / textura</b><small>Fachadas, placas e muros para usar de textura ou referência.</small></button>
+        <button class="preset" data-p="foto3d" aria-pressed="true"><b>Referências nítidas</b><small>Poucos quadros, só os mais nítidos. Bom para vídeos que mostram o personagem parado ou girando.</small></button>
+        <button class="preset" data-p="fotogrametria" aria-pressed="false"><b>Poses em sequência</b><small>Muitos quadros seguidos, sem pular os parecidos. Bom para cenas de ação, luta, dança e giro.</small></button>
+        <button class="preset" data-p="ref" aria-pressed="false"><b>Detalhes e cores</b><small>Rosto, roupas, acessórios e paleta. Um quadro a cada poucos segundos.</small></button>
       </div>
       <div class="fields">
         <div class="field"><label class="label" for="iv">1 quadro a cada (s)</label><input type="number" id="iv" min="0.2" max="30" step="0.1" value="2"></div>
@@ -154,8 +154,8 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
           <select id="maxw"><option value="0">Original (pesado)</option><option value="1920">1920 px</option><option value="1600" selected>1600 px (recomendado)</option><option value="1280">1280 px (celular fraco)</option></select></div>
       </div>
       <label class="chk"><input type="checkbox" id="dedup" checked> Pular quadros quase iguais (câmera parada)</label>
-      <label class="chk"><input type="checkbox" id="motoOn" checked> Filmei de moto: tirar a moto (corta o guidão/painel, ou descarta o quadro se a moto tomar a imagem)</label>
-      <div class="fields"><div class="field"><label class="label" for="cropB">Cortar embaixo sempre (%)</label><input type="number" id="cropB" min="0" max="60" step="5" value="0"></div></div>
+      <input type="checkbox" id="motoOn" hidden>
+      <div class="fields"><div class="field"><label class="label" for="cropB">Cortar embaixo (%), para tirar legenda</label><input type="number" id="cropB" min="0" max="60" step="5" value="0"></div></div>
       <div class="row"><button class="btn pri" id="go" disabled>Extrair quadros</button><button class="btn" id="stop" hidden>Parar</button><span class="meta" id="est"></span></div>
       <div class="bar" id="bar" hidden><i id="barFill"></i></div>
       <div id="st" class="status" hidden></div>
@@ -180,8 +180,8 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
       </div>
     </div>
     <div class="row">
-      <label class="label" for="bulkLabel">Nome do lugar para as marcadas</label>
-      <input type="text" id="bulkLabel" list="bkNames" placeholder="Ex.: Avenida principal, Praça central" style="max-width:340px"><datalist id="bkNames"></datalist>
+      <label class="label" for="bulkLabel">Nome do personagem para as marcadas</label>
+      <input type="text" id="bulkLabel" list="bkNames" placeholder="Ex.: Protagonista, Vilão, Rosto, Roupas" style="max-width:340px"><datalist id="bkNames"><option value="Rosto"><option value="Corpo inteiro"><option value="Perfil"><option value="Costas"><option value="Roupas"><option value="Cabelo"><option value="Acessórios"><option value="Expressões"><option value="Poses"><option value="Paleta de cores"></datalist>
       <button class="btn sm" id="applyLabel">Aplicar</button>
     </div>
     <div id="sheet" class="sheet"><div class="empty">Os quadros aparecem aqui. Abra um vídeo e clique em "Extrair quadros", ou use "Capturar este quadro" enquanto assiste.</div></div>
@@ -189,75 +189,31 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 
   <div class="cols">
     <section class="step" aria-labelledby="h4s">
-      <h2 id="h4s"><span class="n">04</span>Enviar as fotos</h2>
+      <h2 id="h4s"><span class="n">04</span>Baixar as imagens</h2>
       <div class="fields">
-        <div class="field"><label class="label" for="prefix">Nome do arquivo</label><input type="text" id="prefix" value="ministro-andreazza"></div>
+        <div class="field"><label class="label" for="prefix">Nome do arquivo</label><input type="text" id="prefix" value="personagem"></div>
         <div class="field"><label class="label" for="q">Qualidade JPG</label><select id="q"><option value="0.95">Máxima (95%)</option><option value="0.9" selected>Alta (90%)</option><option value="0.8">Leve (80%)</option></select></div>
       </div>
-      <label class="chk"><input type="checkbox" id="folders" checked> Separar em subpastas pelo nome do lugar</label>
-      <p class="note">As IAs não abrem ZIP: mande as fotos soltas ou a folha de contato (uma imagem só com todas).</p>
+      <label class="chk"><input type="checkbox" id="folders" checked> Separar em subpastas pelo nome do personagem</label>
+      <p class="note">Para alimentar uma IA, o ZIP com todas as imagens é o mais prático. Algumas IAs de chat não abrem ZIP: nelas, use as fotos soltas ou a folha de contato. Use só vídeos seus ou com permissão de quem os fez.</p>
       <div class="row">
         <button class="btn pri" id="shareBtn" disabled hidden>Compartilhar com app de IA</button>
-        <button class="btn pri" id="dirBtn" disabled>Salvar numa pasta (sem ZIP)</button>
-        <button class="btn pri" id="sheetBtn" disabled>Baixar folha de contato (1 imagem)</button>
+        <button class="btn pri" id="zipAll" disabled>Baixar ZIP com TODAS as fotos</button>
+        <button class="btn" id="dirBtn" disabled>Salvar numa pasta (sem ZIP)</button>
+        <button class="btn" id="sheetBtn" disabled>Baixar folha de contato (1 imagem)</button>
         <button class="btn" id="looseBtn" disabled>Baixar fotos soltas (JPG)</button>
-        <button class="btn" id="zip" disabled>Baixar ZIP</button>
+        <button class="btn" id="zip" disabled>Baixar ZIP só das marcadas</button>
         <span class="meta" id="zipInfo"></span>
       </div>
       <div id="zst" class="status" hidden></div>
     </section>
 
     <section class="step" aria-labelledby="h5s">
-      <h2 id="h5s"><span class="n">i</span>Como filmar para dar certo</h2>
+      <h2 id="h5s"><span class="n">i</span>Dicas para bons quadros</h2>
       <ul class="tips" id="tips"></ul>
     </section>
   </div>
 
-  <section class="step" aria-labelledby="h6s" id="gp">
-    <div class="toolbar">
-      <h2 id="h6s"><span class="n">05</span>Bloco 3D (maquete)</h2>
-      <span class="meta" id="bkInfo"></span>
-    </div>
-    <span class="label">O que você filmou</span>
-    <div class="presets" id="bkKind">
-      <button class="preset" type="button" data-k="cidade" aria-pressed="true"><b>Cidade</b><small>Ruas, casas, comércio, praça, prédios públicos.</small></button>
-      <button class="preset" type="button" data-k="sitio" aria-pressed="false"><b>Sítio / fazenda</b><small>Casa, café, pasto, curral, cerca, mata, igarapé. Tamanho em alqueires.</small></button>
-    </div>
-    <span class="label">Como gerar</span>
-    <div class="presets" id="bkModes">
-      <button class="preset" type="button" data-m="city" aria-pressed="true"><b>Lugar inteiro (1 bloco)</b><small>Um quadrado só com o lugar todo, seguindo o mapa e as fotos. As partes abaixo viram as zonas dele.</small></button>
-      <button class="preset" type="button" data-m="tiles" aria-pressed="false"><b>8 blocos separados</b><small>Um quadrado por parte do lugar, com estradas que se encaixam.</small></button>
-    </div>
-    <p class="note">Dê às fotos o mesmo nome da zona (no passo 03) para elas virarem referência dela. Os prompts saem em inglês, que os geradores entendem melhor.</p>
-    <label class="chk"><input type="checkbox" id="bkMap" checked> Vou anexar o mapa ou o print do satélite (o gerador segue as ruas, cercas e divisões dele)</label>
-    <div class="fields">
-      <div class="field"><label class="label" for="bkCity">Nome do lugar</label><input type="text" id="bkCity" value="Ministro Andreazza, Rondônia, Brasil"></div>
-      <div class="field"><label class="label" for="bkDepth">Terra embaixo, nas laterais (m)</label><input type="number" id="bkDepth" min="0.5" max="50" step="0.5" value="1"></div>
-      <div class="field" id="bkCitySizeF"><label class="label" for="bkCitySize">Tamanho da cidade</label><input type="text" id="bkCitySize" value="1,2 km × 1,2 km"></div>
-      <div class="field" id="bkAreaF" hidden><label class="label" for="bkArea">Área do sítio</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" id="bkArea" min="0.1" step="0.5" value="10" style="max-width:90px"><select id="bkUnit"><option value="2.42" selected>alqueires (paulista)</option><option value="4.84">alqueires (mineiro)</option><option value="1">hectares</option></select></div><span class="meta" id="bkAreaTxt"></span></div>
-      <div class="field" id="bkSizeF" hidden><label class="label" for="bkSize">Tamanho de cada bloco</label><select id="bkSize"><option value="100">100 m × 100 m</option><option value="250" selected>250 m × 250 m</option><option value="500">500 m × 500 m</option><option value="1000">1 km × 1 km</option></select></div>
-      <div class="field"><label class="label" for="bkStyle">Estilo</label><select id="bkStyle"><option value="realistic">Realista (diorama)</option><option value="lowpoly">Jogo low-poly</option></select></div>
-      <div class="field"><label class="label" for="bkSeason">Época</label><select id="bkSeason"><option value="dry">Seca (poeira, sol forte)</option><option value="wet">Chuva (verde, barro)</option></select></div>
-    </div>
-    <div class="blocks" id="blocks"></div>
-    <div class="row"><button class="btn pri" id="bkGen">Gerar os prompts</button><button class="btn" id="bkSave" disabled>Baixar prompts (.txt)</button><a class="btn" id="bkGemini" href="https://gemini.google.com/app" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;border:1px solid var(--ink);padding:8px 14px;font-weight:600;color:var(--ink)">Copiar prompt e abrir o Gemini</a><span class="meta" id="bkSt"></span></div>
-    <div class="outs" id="bkOut"></div>
-  </section>
-
-  <section class="step" aria-labelledby="h7s" id="objsec">
-    <div class="toolbar">
-      <h2 id="h7s"><span class="n">06</span>Objetos 3D (GLB) grátis</h2>
-      <span class="meta" id="objInfo"></span>
-    </div>
-    <p class="note">Para cada objeto: escolha uma foto do vídeo (ou envie uma), arraste o dedo em volta do objeto para recortar, baixe a foto pronta e envie no gerador grátis. Ele devolve o GLB.</p>
-    <div class="objs" id="objs"></div>
-    <div class="row"><input type="text" id="newObj" placeholder="Outro objeto (ex.: fogão a lenha, curral)" style="max-width:320px"><button class="btn" type="button" id="addObj">+ Adicionar objeto</button></div>
-    <ul class="tips">
-      <li><b>Hunyuan3D</b> (Tencent): uns 20 modelos grátis por dia. Arraste a foto pronta, clique em gerar e baixe em GLB.</li>
-      <li><b>TRELLIS</b> (Hugging Face): grátis, às vezes com fila. Boa opção quando o limite do Hunyuan acabar.</li>
-      <li>Avatar: o GLB sai parado (sem esqueleto). Para ele andar, envie o GLB no <b>Mixamo</b> (grátis), que coloca o esqueleto e as animações.</li>
-    </ul>
-  </section>
 </div>
 
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Quadro ampliado">
@@ -280,20 +236,20 @@ let nextId = 1, running = false, cancel = false, downloads = null, viewIdx = -1;
 
 const PRESETS = {
   foto3d: { iv: 2, dedup: true, min: 55, tips: [
-    "Pare na frente de cada prédio por 2 a 3 segundos, com ele inteiro no quadro.",
-    "Filme de dia, com o sol atrás de você ou com o céu nublado.",
-    "Um prédio de cada vez. Para o gerador, carro e gente na frente atrapalham.",
-    "Depois escolha 1 foto por prédio: a mais nítida e mais de frente." ]},
+    "Use vídeos em que o personagem aparece inteiro, parado ou girando devagar, com boa luz.",
+    "Prefira vídeo de boa qualidade (1080p ou mais): quadro borrado não ajuda a IA.",
+    "Depois escolha os melhores: rosto de frente, perfil, costas e corpo inteiro.",
+    "Dê o nome do personagem no passo 03 para o ZIP sair separado em pastas." ]},
   fotogrametria: { iv: 0.7, dedup: false, min: 40, tips: [
-    "Ande devagar dando a volta no prédio, sem parar e sem girar a câmera rápido.",
-    "Cada foto precisa ter uns 70% da imagem em comum com a anterior.",
-    "Mantenha a mesma distância e altura; depois faça uma volta mais alta, com o braço erguido.",
-    "Envie de 40 a 150 fotos do mesmo prédio para o RealityScan ou o Polycam." ]},
+    "Um quadro a cada 0,5 a 1 segundo pega a pose em cada momento da ação.",
+    "Cenas de luta, corrida e dança rendem poses variadas. Use Início e Fim para pegar só o trecho bom.",
+    "Aqui os quadros parecidos não são pulados: a diferença entre as poses é o que importa.",
+    "Depois desmarque os borrados com a barra de nitidez." ]},
   ref: { iv: 3, dedup: true, min: 50, tips: [
-    "Filme as fachadas bem de frente, sem ângulo, para virar textura reta.",
-    "Chegue perto de placas, muros, calçadas e telhados: detalhe vale mais que distância.",
-    "Grave as ruas do meio da pista (com segurança) para ver o tamanho e o espaçamento das casas.",
-    "Use o nome do lugar em cada foto para achar depois." ]},
+    "Procure os trechos com close do rosto, roupas, acessórios e armas.",
+    "Pare nas cenas em que as cores aparecem bem, sem muita sombra.",
+    "Use o corte de baixo para tirar legenda do quadro.",
+    "Coloque o nome do personagem em cada imagem para achar depois." ]},
 };
 let preset = "foto3d";
 function applyPreset(p){
@@ -405,26 +361,7 @@ function scoreAll(){ // fixed scale: Laplacian variance (320px gray) ~15 = very 
     f.score = Math.round(Math.max(0, Math.min(100, (Math.log1p(v)-lo)/(hi-lo)*100))); });
 }
 function keepOf(f){ const man = 1-(Math.min(60,Math.max(0,parseFloat($("#cropB").value)||0))/100); return Math.min(man, $("#motoOn").checked ? (f.keep ?? 1) : 1); }
-/* moto detection: pixels that stay the same in neighbouring frames while the rest of the picture moves */
-function detectMoto(){
-  const W=64,H=36;
-  frames.forEach(f=>{ f.moto=false; f.keep=1; });
-  for(let i=0;i<frames.length;i++){
-    const f=frames[i], nb=[frames[i-1],frames[i+1]].filter(o=>o&&o.sig2&&Math.abs(o.t-f.t)<=4);
-    if(!f.sig2||!nb.length) continue;
-    const fixed=new Uint8Array(W*H); let moving=0, nf=0;
-    const d=f.sig2.map((v,k)=>Math.max(...nb.map(o=>Math.abs(v-o.sig2[k]))));
-    const sorted=Float32Array.from(d).sort(); const mov=sorted[Math.floor(sorted.length*0.85)];
-    if(mov<10) continue; /* parado: nao da para separar a moto do resto */
-    for(let k=0;k<d.length;k++){ if(d[k]<Math.max(4,mov*0.12)){ fixed[k]=1; nf++; } }
-    if(nf/(W*H) < 0.08) continue;
-    const rowFrac=new Float32Array(H); for(let y=0;y<H;y++){ let c=0; for(let x=0;x<W;x++) c+=fixed[y*W+x]; rowFrac[y]=c/W; }
-    let top=H; for(let y=H-1;y>=0;y--){ if(rowFrac[y]>0.25) top=y; else if(y<H-1 && rowFrac[y]<0.1 && top<H) break; }
-    const fixedAbove=[...rowFrac.slice(0,Math.floor(H*0.5))].reduce((a,b)=>a+b,0)/Math.floor(H*0.5);
-    f.moto=true;
-    if(top<H && top/H>=0.45 && fixedAbove<0.2){ f.keep=Math.max(0.45,(top-1)/H); } else { f.keep=0; }
-  }
-}
+function detectMoto(){ frames.forEach(f=>{ f.moto=false; f.keep=1; }); } /* sem detector de moto neste app */
 $("#go").addEventListener("click", async () => {
   if(running) return;
   const iv = Math.max(0.2, parseFloat($("#iv").value)||1), a = Math.max(0, parseFloat($("#t0").value)||0), b = Math.min(vid.duration, parseFloat($("#t1").value)||vid.duration);
@@ -468,11 +405,12 @@ function bandTxt(s){ const b=band(s); return b==="good"?"Nítida":b==="mid"?"Boa
 function autoSelect(){ const m = parseInt($("#minSharp").value); frames.forEach(f=>f.sel = f.score>=m && keepOf(f)>0); }
 $("#motoOn").addEventListener("change",()=>{ scoreAll(); autoSelect(); render(); });
 $("#cropB").addEventListener("input",()=>{ scoreAll(); render(); });
+function updZipAll(){ const b=$("#zipAll"); b.disabled=!frames.length; b.textContent = frames.length ? `Baixar ZIP com TODAS (${frames.length} fotos)` : "Baixar ZIP com TODAS as fotos"; }
 function render(){
-  const box = $("#sheet"); box.replaceChildren(); typeof countRefs==="function" && countRefs(); clearTimeout(render.t); render.t=setTimeout(()=>typeof renderObjs==="function"&&renderObjs(),400);
+  const box = $("#sheet"); box.replaceChildren();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -491,12 +429,12 @@ function render(){
     const cb = document.createElement("input"); cb.type="checkbox"; cb.checked=f.sel; cb.id="cb"+f.id;
     cb.addEventListener("change",()=>{ f.sel=cb.checked; card.classList.toggle("sel",f.sel); updateCounts(); });
     chk.append(cb, document.createTextNode("Usar esta"));
-    const lab = document.createElement("input"); lab.type="text"; lab.placeholder="Nome do lugar"; lab.value=f.label; lab.id="lb"+f.id; lab.setAttribute("aria-label",`Nome do lugar do quadro ${fmt(f.t)}`);
-    lab.addEventListener("input",()=>{ f.label = lab.value; countRefs(); });
+    const lab = document.createElement("input"); lab.type="text"; lab.placeholder="Nome do personagem"; lab.value=f.label; lab.id="lb"+f.id; lab.setAttribute("aria-label",`Nome do personagem do quadro ${fmt(f.t)}`);
+    lab.addEventListener("input",()=>{ f.label = lab.value; });
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ typeof countRefs==="function" && countRefs(); typeof renderObjs==="function" && clearTimeout(updateCounts.t); updateCounts.t=setTimeout(()=>typeof renderObjs==="function"&&renderObjs(),400); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -526,13 +464,15 @@ $("#vSel").addEventListener("click",toggleView); $("#vClose").addEventListener("
 /* ---------- exportar ---------- */
 function slug(s){ return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,60); }
 $("#prefix").addEventListener("input",e=>e.target.dataset.touched="1");
-$("#zip").addEventListener("click", async () => {
-  const st = $("#zst"), sel = frames.filter(f=>f.sel);
+$("#zip").addEventListener("click", () => exportZip(frames.filter(f=>f.sel), false));
+$("#zipAll").addEventListener("click", () => exportZip(frames.slice(), true));
+async function exportZip(sel, all){
+  const st = $("#zst");
   if(!sel.length) return;
   if(!window.JSZip){ show(st,"O compactador não carregou. Recarregue a página.","err"); return; }
-  const btn=$("#zip"); btn.disabled=true; show(st,"Montando o ZIP…");
+  const btn = $(all ? "#zipAll" : "#zip"); btn.disabled = true; show(st,"Montando o ZIP…");
   try{
-    const zip = new JSZip(), prefix = slug($("#prefix").value)||"quadros", byFolder = $("#folders").checked;
+    const zip = new JSZip(), prefix = slug($("#prefix").value)||"personagem", byFolder = $("#folders").checked;
     const used = {};
     const q = parseFloat($("#q").value)||0.9, outs = [];
     for(const f of sel){ const k = keepOf(f); if(k>0 && k<1){ const bmp = await createImageBitmap(f.blob); const c=document.createElement("canvas"); c.width=bmp.width; c.height=Math.round(bmp.height*k); c.getContext("2d").drawImage(bmp,0,0); outs.push(await new Promise(r=>c.toBlob(r,"image/jpeg",q))); bmp.close&&bmp.close(); } else outs.push(f.blob); }
@@ -542,18 +482,16 @@ $("#zip").addEventListener("click", async () => {
       zip.file(byFolder ? `${place}/${name}` : name, outs[i]);
       used[place] = (used[place]||0)+1;
     });
-    zip.file("LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+
-      `\n\nFoto -> 3D (Hunyuan3D / TRELLIS / Tripo): envie 1 foto por prédio, a mais nítida.\nFotogrametria (RealityScan / Polycam): envie todas as fotos da mesma pasta juntas.\n`);
-    if(lastPromptsTxt) zip.file("PROMPTS-BLOCOS.txt", lastPromptsTxt);
+    zip.file("LEIA-ME.txt", `Imagens de personagem extraídas do vídeo (${sel.length} arquivos${all?", todas as extraídas":""}).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} imagem(ns)`).join("\n")+
+      `\n\nUse as pastas por personagem para organizar as referências ou o treino da sua IA.\n`);
     const blob = await zip.generateAsync({ type:"blob", compression:"STORE" }, m => show(st,`Montando o ZIP… ${Math.round(m.percent)}%`));
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${prefix}_quadros.zip`;
-    document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
-    show(st,`Baixado: ${sel.length} fotos. Procure o ZIP na pasta Downloads.`,"ok");
+    await saveBlob(`${prefix}_${all?"todas":"quadros"}.zip`, blob);
+    show(st,`ZIP pronto: ${sel.length} imagens. Procure o arquivo na pasta Downloads.`,"ok");
   }catch(e){
-    const m = { declined:"Download cancelado.", too_large:"O ZIP ficou grande demais para este aparelho. Desmarque algumas fotos ou escolha qualidade Leve e largura 1920.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche ele e tente de novo." }[e.code] || ("Não deu para baixar: "+(e.message||e.code||e));
+    const m = { declined:"Download cancelado.", too_large:"O ZIP ficou grande demais para este aparelho. Escolha qualidade Leve e largura 1280 ou 1600 no passo 02 e extraia de novo, ou baixe só as marcadas.", rate_limited:"Já tem um download esperando confirmação. Confirme ou feche ele e tente de novo." }[e.code] || ("Não deu para baixar: "+(e.message||e.code||e));
     show(st,m,e.code==="declined"?"":"err");
   }finally{ btn.disabled=false; }
-});
+}
 
 
 /* ---------- exportar sem ZIP (fotos soltas, folha de contato, compartilhar) ---------- */
@@ -578,7 +516,7 @@ async function contactSheet(sel, blobs){
   const cellH = Math.round(cellW*ratio);
   const c=document.createElement("canvas"); c.width=cols*(cellW+pad)+pad; c.height=titleH+rows*(cellH+labH+pad)+pad;
   const x=c.getContext("2d"); x.fillStyle="#ffffff"; x.fillRect(0,0,c.width,c.height);
-  x.fillStyle="#22201d"; x.font="bold 24px Barlow, Arial, sans-serif"; x.fillText(($("#bkCity")?.value||$("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 32);
+  x.fillStyle="#22201d"; x.font="bold 24px Barlow, Arial, sans-serif"; x.fillText(($("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 32);
   for(let i=0;i<n;i++){
     const b = await createImageBitmap(blobs[i]);
     const cx=pad+(i%cols)*(cellW+pad), cy=titleH+Math.floor(i/cols)*(cellH+labH+pad);
@@ -614,7 +552,7 @@ $("#shareBtn").hidden = !canShareFiles;
 $("#shareBtn").addEventListener("click", async()=>{
   const st=$("#zst"), sel=frames.filter(f=>f.sel).slice(0,10); if(!sel.length) return; $("#shareBtn").disabled=true;
   try{ const blobs=await croppedBlobs(sel); const files=blobs.map((b,i)=>new File([b], fileName(sel[i],i), {type:"image/jpeg"}));
-    await navigator.share({ files, title:"Fotos para o bloco 3D", text: lastPromptsTxt ? lastPromptsTxt.slice(0,3000) : "" });
+    await navigator.share({ files, title:"Imagens de personagem", text:"" });
     show(st, `${files.length} fotos enviadas.${frames.filter(f=>f.sel).length>10?" (Os apps aceitam até 10 por vez; mande o resto depois.)":""}`, "ok");
   }catch(e){ show(st, expErr(e), e.name==="AbortError"?"":"err"); } finally{ $("#shareBtn").disabled=false; updateCounts(); }
 });
@@ -639,95 +577,12 @@ $("#dirBtn").addEventListener("click", async()=>{
     }
     show(st, "Montando a folha de contato…");
     await write(dir, `${prefix}_folha-de-contato.jpg`, await contactSheet(sel, blobs.slice(0,36)));
-    if(lastPromptsTxt) await write(dir, "PROMPTS-BLOCOS.txt", lastPromptsTxt);
-    await write(dir, "LEIA-ME.txt", `Fotos extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+"\n\nPara a IA: envie a folha de contato + o prompt + o print do satélite.\n");
-    show(st, `Pronto: pasta "${prefix}_fotos" criada com ${sel.length} fotos${byFolder?" separadas por lugar":""}, a folha de contato${lastPromptsTxt?" e os prompts":""}.`, "ok");
+    await write(dir, "LEIA-ME.txt", `Imagens de personagem extraídas do vídeo (${sel.length} arquivos).\n\n`+Object.entries(used).map(([k,v])=>`${k}: ${v} foto(s)`).join("\n")+"\n\nUse as pastas por personagem para organizar as referências da sua IA.\n");
+    show(st, `Pronto: pasta "${prefix}_fotos" criada com ${sel.length} fotos${byFolder?" separadas por personagem":""} e a folha de contato.`, "ok");
   }catch(e){ show(st, "Não deu para gravar na pasta: "+(e.message||e.name||e), "err"); }
   finally{ $("#dirBtn").disabled=false; }
 });
 
-
-/* ---------- 06 objetos 3D (GLB) grátis ---------- */
-const OBJ_TIPS = {
-  moto:"Foto da moto inteira, de lado (perfil), parada, com fundo simples.",
-  casa:"Fachada da casa de frente, inteira no quadro, sem carro ou gente na frente.",
-  movel:"Um móvel ou objeto por vez (fogão, mesa, filtro de barro), inteiro e de frente.",
-  cafe:"Um pé de café sozinho, inteiro, do chão até o topo.",
-  fruta:"Um pé de fruta sozinho (manga, banana, açaí), inteiro, com céu atrás.",
-  caixa:"A caixa d'água inteira, com a torre, de lado.",
-  porteira:"A porteira ou um pedaço de cerca de frente, com uns 2 mourões.",
-  avatar:"Sua foto de corpo inteiro, de frente, em pé, braços um pouco abertos (como um A), roupa justa ou normal, fundo liso. Não use foto de outra pessoa sem permissão.",
-  outro:"O objeto inteiro, sozinho no quadro, de frente ou de lado, com fundo simples."
-};
-const OBJECTS = [
-  {id:"moto", name:"Moto"}, {id:"casa", name:"Casa (fachada)"}, {id:"movel", name:"Coisas da casa"}, {id:"cafe", name:"Pé de café"},
-  {id:"fruta", name:"Pé de fruta"}, {id:"caixa", name:"Caixa d'água"}, {id:"porteira", name:"Porteira / cerca"}, {id:"avatar", name:"Avatar (você)"}
-].map(o=>({...o, tip:OBJ_TIPS[o.id], src:null, crop:null, out:null, done:false}));
-const HUNYUAN = "https://3d.hunyuan.tencent.com/", TRELLIS = "https://huggingface.co/spaces/JeffreyXiang/TRELLIS", MIXAMO = "https://www.mixamo.com/";
-function objInfo(){ const d=OBJECTS.filter(o=>o.done).length; $("#objInfo").textContent = `${d} de ${OBJECTS.length} GLB prontos`; }
-function renderObjs(){
-  const box=$("#objs"); box.replaceChildren();
-  OBJECTS.forEach((o,i)=>{
-    const card=document.createElement("div"); card.className="obj"+(o.done?" done":"");
-    const h=document.createElement("h3"); h.textContent=o.name;
-    const tip=document.createElement("p"); tip.className="note"; tip.textContent=o.tip;
-    const pick=document.createElement("div"); pick.className="picker"; pick.setAttribute("aria-label","Escolher foto do vídeo");
-    frames.filter(f=>f.sel).slice(0,40).forEach(f=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(o.src&&o.src.frameId===f.id)); b.title=`${f.label||"sem nome"} · ${fmt(f.t)}`; const im=document.createElement("img"); im.src=f.thumb; im.alt=""; b.append(im);
-      b.addEventListener("click", async()=>{ o.src={frameId:f.id, blob: (await croppedBlobs([f]))[0]}; o.crop=null; o.out=null; renderObjs(); }); pick.append(b); });
-    if(!frames.some(f=>f.sel)){ const n=document.createElement("span"); n.className="meta"; n.textContent="Extraia e marque fotos no passo 03, ou envie uma foto abaixo."; pick.append(n); }
-    const up=document.createElement("input"); up.type="file"; up.accept="image/*"; up.id="objup"+i; up.setAttribute("aria-label",`Enviar foto para ${o.name}`);
-    up.addEventListener("change",()=>{ const f=up.files[0]; if(f){ o.src={frameId:null, blob:f}; o.crop=null; o.out=null; renderObjs(); } });
-    const upl=document.createElement("label"); upl.className="label"; upl.htmlFor=up.id; upl.textContent = o.id==="avatar" ? "Enviar sua foto" : "Ou enviar uma foto";
-    card.append(h, tip, pick, upl, up);
-    if(o.src){
-      const cb=document.createElement("div"); cb.className="cropbox"; const cv=document.createElement("canvas"); const selEl=document.createElement("div"); selEl.className="sel"; selEl.hidden=true; cb.append(cv, selEl);
-      const hint=document.createElement("span"); hint.className="meta"; hint.textContent="Arraste o dedo em volta do objeto para recortar.";
-      card.append(cb, hint);
-      drawCrop(o, cv, selEl);
-      const row=document.createElement("div"); row.className="row";
-      const dl=document.createElement("button"); dl.className="btn pri sm"; dl.type="button"; dl.textContent="Baixar foto pronta";
-      dl.addEventListener("click", async()=>{ try{ const b=await prepImage(o); await saveBlob(`${slug($("#prefix").value)||"objeto"}_${slug(o.name)}_para-3d.png`, b); hint.textContent="Foto pronta baixada. Agora abra o gerador e envie ela."; }catch(e){ hint.textContent=expErr(e); } });
-      row.append(dl);
-      if(canShareFiles){ const sh=document.createElement("button"); sh.className="btn sm"; sh.type="button"; sh.textContent="Compartilhar";
-        sh.addEventListener("click", async()=>{ try{ const b=await prepImage(o); await navigator.share({ files:[new File([b], `${slug(o.name)}_para-3d.png`, {type:"image/png"})] }); }catch(e){ if(e.name!=="AbortError") hint.textContent=expErr(e); } }); row.append(sh); }
-      card.append(row);
-    }
-    const links=document.createElement("div"); links.className="links";
-    [["Abrir Hunyuan3D",HUNYUAN],["Abrir TRELLIS",TRELLIS]].concat(o.id==="avatar"?[["Mixamo (esqueleto)",MIXAMO]]:[]).forEach(([t,u])=>{ const a=document.createElement("a"); a.href=u; a.target="_blank"; a.rel="noopener"; a.textContent=t; links.append(a); });
-    const done=document.createElement("label"); done.className="chk"; const dc=document.createElement("input"); dc.type="checkbox"; dc.checked=o.done; dc.addEventListener("change",()=>{ o.done=dc.checked; card.classList.toggle("done",o.done); objInfo(); });
-    done.append(dc, document.createTextNode("Já baixei o GLB"));
-    card.append(links, done); box.append(card);
-  });
-  objInfo();
-}
-async function drawCrop(o, cv, selEl){
-  const bmp = await createImageBitmap(o.src.blob); const maxW=900, s=Math.min(1, maxW/bmp.width);
-  cv.width=Math.round(bmp.width*s); cv.height=Math.round(bmp.height*s); cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
-  o.src.w=bmp.width; o.src.h=bmp.height; bmp.close&&bmp.close();
-  const show=()=>{ if(!o.crop){ selEl.hidden=true; return; } const r=cv.getBoundingClientRect(), k=r.width/o.src.w; selEl.hidden=false; Object.assign(selEl.style,{left:o.crop.x*k+"px", top:o.crop.y*k+"px", width:o.crop.w*k+"px", height:o.crop.h*k+"px"}); };
-  let start=null;
-  const pt=e=>{ const r=cv.getBoundingClientRect(), k=o.src.w/r.width; return { x:Math.max(0,Math.min(o.src.w,(e.clientX-r.left)*k)), y:Math.max(0,Math.min(o.src.h,(e.clientY-r.top)*k)) }; };
-  cv.addEventListener("pointerdown", e=>{ cv.setPointerCapture(e.pointerId); start=pt(e); o.crop={x:start.x,y:start.y,w:1,h:1}; show(); });
-  cv.addEventListener("pointermove", e=>{ if(!start) return; const p=pt(e); o.crop={x:Math.min(start.x,p.x), y:Math.min(start.y,p.y), w:Math.abs(p.x-start.x), h:Math.abs(p.y-start.y)}; show(); });
-  cv.addEventListener("pointerup", ()=>{ start=null; if(o.crop && (o.crop.w<20||o.crop.h<20)) o.crop=null; o.out=null; show(); });
-  addEventListener("resize", show); show();
-}
-async function prepImage(o){ /* recorte -> quadrado 1024 px, objeto centralizado, fundo branco */
-  const bmp = await createImageBitmap(o.src.blob);
-  const c = o.crop || {x:0,y:0,w:bmp.width,h:bmp.height};
-  const S=1024, m=0.08, s=Math.min(S*(1-2*m)/c.w, S*(1-2*m)/c.h);
-  const cv=document.createElement("canvas"); cv.width=S; cv.height=S; const x=cv.getContext("2d");
-  x.fillStyle="#ffffff"; x.fillRect(0,0,S,S);
-  const w=c.w*s, h=c.h*s; x.drawImage(bmp, c.x, c.y, c.w, c.h, (S-w)/2, (S-h)/2, w, h); bmp.close&&bmp.close();
-  const out = await new Promise(r=>cv.toBlob(r,"image/png")); cv.width=1; cv.height=1; if(!out) throw new Error("memória"); return out;
-}
-$("#addObj").addEventListener("click",()=>{ const v=$("#newObj").value.trim(); if(!v) return; OBJECTS.push({id:"outro", name:v, tip:OBJ_TIPS.outro, src:null, crop:null, out:null, done:false}); $("#newObj").value=""; renderObjs(); });
-renderObjs();
-/* abrir Gemini com o prompt do bloco copiado */
-$("#bkGemini").addEventListener("click", async()=>{ if(!lastPromptsTxt){ $("#bkGen").click(); }
-  const t = lastPromptsTxt.split("\n\nNEGATIVE:")[0].replace(/^=== .* ===\n/,"") + "\n\nAvoid: " + negTxt();
-  try{ await navigator.clipboard.writeText(t); $("#bkSt").textContent="Prompt copiado. No Gemini, cole o prompt e anexe a folha de contato e o print do satélite."; }catch{ $("#bkSt").textContent="Copie o prompt na caixa abaixo e cole no Gemini."; }
-});
 
 /* ---------- utilidades ---------- */
 function fmt(t){ const m=Math.floor(t/60), s=(t%60); return `${String(m).padStart(2,"0")}:${s.toFixed(1).padStart(4,"0")}`; }
@@ -736,169 +591,6 @@ function status(msg,kind){ show($("#st"),msg,kind); }
 
 let saved = "foto3d"; try{ saved = localStorage.getItem("preset") || "foto3d"; }catch{}
 applyPreset(PRESETS[saved] ? saved : "foto3d");
-
-/* ---------- 05 blocos quadrados ---------- */
-const CITY_BLOCKS = [
-  { name:"Entrada de terra", road:"dirt-ew", desc:"Red dirt road entering town, simple single-story houses (one yellow house with a low wall), dry grass, scattered trees, wooden fences and utility poles." },
-  { name:"Avenida principal", road:"avenue-ew", desc:"Wide paved main avenue with a central median of green grass and big shade trees with white-painted trunks, yellow dashed lines, curbs, motorcycles and pickups." },
-  { name:"Rua do comércio", road:"street-ew", desc:"Commercial street with one- and two-story shops with flat painted facades (white, light blue, orange, cream), metal awnings, roll-up doors, small signs, cars parked at the curb." },
-  { name:"Praça central", road:"cross", desc:"Town square with green lawn, shade trees, a colorful children's playground, concrete benches and interlocking paver sidewalks, surrounded by streets." },
-  { name:"Prédios públicos", road:"street-ns", desc:"White and blue public buildings with arched windows and a small antenna tower, a health post with a covered garage of ambulances, fenced yard with red soil." },
-  { name:"Estacionamento e posto", road:"avenue-ew", desc:"Large interlocking-paver parking lot full of white and dark pickup trucks, a gas station / bus stop with a metal canopy, two-story buildings behind." },
-  { name:"Bairro residencial", road:"cross", desc:"Residential blocks of simple single-story houses with small yards, walls and gates, fruit trees, palm trees, narrow paved streets turning into dirt." },
-  { name:"Borda da cidade", road:"dirt-ns", desc:"Edge of town: pasture with barbed-wire fences, a red dirt road, a small river with a wooden bridge, and dense Amazon forest at the back." },
-];
-const FARM_BLOCKS = [
-  { name:"Casa e terreiro", road:"dirt-ew", desc:"Farmhouse (sede) of wood or simple masonry with a ceramic or metal roof and a front porch, a water tank tower (blue tank on a brick tower), a swept red-earth yard (terreiro), a clothesline, a motorcycle, dogs and chickens, mango and banana trees around." },
-  { name:"Cafezal", road:"none", desc:"Coffee plantation of conilon (robusta) coffee in long straight rows about 3 m apart, tall bushy dark-green plants with red and green berries, dirt paths between the rows." },
-  { name:"Café novo", road:"none", desc:"Young coffee plantation: small young coffee plants in neat rows on bare red earth, some shade from banana plants." },
-  { name:"Pasto", road:"none", desc:"Pasture of braquiária grass divided into paddocks by barbed-wire fences with wooden posts, a few white Nelore cattle, a water trough, a salt trough (cocho), scattered shade trees." },
-  { name:"Curral e galpão", road:"dirt-ns", desc:"Wooden cattle corral with a loading chute, a simple open shed (galpão) with a metal roof storing tools, sacks of coffee and a small tractor or cart, a coffee drying yard of concrete (terreiro de café)." },
-  { name:"Estrada e porteira", road:"dirt-ew", desc:"Red dirt road (linha) in front of the farm with a wooden farm gate (porteira), a mailbox, utility poles with power lines along the road." },
-  { name:"Mata (reserva)", road:"none", desc:"Dense Amazon forest reserve at the back of the property: tall trees, a few Brazil-nut trees (castanheira) rising above the canopy, açaí palms, vines and undergrowth." },
-  { name:"Igarapé", road:"none", desc:"A small stream (igarapé) crossing the land with a simple wooden bridge, buriti and açaí palms along the banks, a small pond for the cattle." },
-];
-let kind = "cidade";
-let BLOCKS = CITY_BLOCKS.map(b=>({...b}));
-function placeOf(){ return kind==="sitio" ? `the small rural farm (sítio) "${$("#bkCity").value}" in the Amazon interior of Rondônia, Brazil` : `the small Amazon-interior town of ${$("#bkCity").value}`; }
-function farmArea(){ const a=Math.max(0.1,parseFloat($("#bkArea").value)||10), u=parseFloat($("#bkUnit").value)||2.42; const ha=a*u; const side=Math.round(Math.sqrt(ha*10000)/10)*10; return {ha, side}; }
-function updArea(){ const {ha,side}=farmArea(); $("#bkAreaTxt").textContent = `≈ ${ha.toFixed(1).replace(".",",")} ha · ≈ ${side} m × ${side} m`; }
-$("#bkArea").addEventListener("input",updArea); $("#bkUnit").addEventListener("change",updArea); updArea();
-const KIND_NAMES = { cidade:"Ministro Andreazza, Rondônia, Brasil", sitio:"Meu sítio, Ministro Andreazza, Rondônia" };
-function setTag(){ $("#placeTag").textContent = ($("#bkCity").value||"").split(",").slice(0,2).map(t=>t.trim()).join(" · "); }
-$("#bkCity").addEventListener("input",()=>{ $("#bkCity").dataset.touched="1"; setTag(); });
-document.querySelectorAll("#bkKind .preset").forEach(b=>b.addEventListener("click",()=>{
-  kind=b.dataset.k; document.querySelectorAll("#bkKind .preset").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
-  BLOCKS.splice(0, BLOCKS.length, ...(kind==="sitio"?FARM_BLOCKS:CITY_BLOCKS).map(o=>({...o})));
-  if(!$("#bkCity").dataset.touched || Object.values(KIND_NAMES).includes($("#bkCity").value)) $("#bkCity").value = KIND_NAMES[kind];
-  if(!$("#prefix").dataset.touched) $("#prefix").value = kind==="sitio" ? "meu-sitio" : "ministro-andreazza";
-  $("#bkCitySizeF").hidden = kind!=="cidade"; $("#bkAreaF").hidden = kind!=="sitio";
-  setTag(); renderBlocks(); fillNames(); $("#bkOut").replaceChildren(); $("#bkSave").disabled=true; $("#bkSt").textContent="";
-}));
-const ROADS = {
-  "dirt-ew":  ["Estrada de terra leste–oeste", "a red dirt road crossing from the exact center of the west edge to the exact center of the east edge"],
-  "dirt-ns":  ["Estrada de terra norte–sul", "a red dirt road crossing from the exact center of the north edge to the exact center of the south edge"],
-  "avenue-ew":["Avenida leste–oeste", "the main paved avenue crossing from the exact center of the west edge to the exact center of the east edge"],
-  "street-ew":["Rua asfaltada leste–oeste", "a paved street crossing from the exact center of the west edge to the exact center of the east edge"],
-  "street-ns":["Rua asfaltada norte–sul", "a paved street crossing from the exact center of the north edge to the exact center of the south edge"],
-  "cross":    ["Cruzamento (4 lados)", "two paved streets crossing at the center, each one leaving at the exact center of all four edges"],
-  "none":     ["Sem estrada", "no road reaching the edges"],
-};
-function renderBlocks(){
-  const box=$("#blocks"); box.replaceChildren();
-  BLOCKS.forEach((b,i)=>{
-    const card=document.createElement("div"); card.className="block";
-    const h=document.createElement("h3"); const n=document.createElement("span"); n.className="n"; n.textContent=String(i+1).padStart(2,"0"); h.append(n, document.createTextNode(" "));
-    const nm=document.createElement("input"); nm.type="text"; nm.value=b.name; nm.id="bkn"+i; nm.setAttribute("aria-label",`Nome do bloco ${i+1}`); nm.addEventListener("input",()=>{ b.name=nm.value; countRefs(); });
-    const sel=document.createElement("select"); sel.id="bkr"+i; sel.setAttribute("aria-label",`Estradas nas bordas do bloco ${i+1}`);
-    Object.entries(ROADS).forEach(([k,[pt]])=>{ const o=document.createElement("option"); o.value=k; o.textContent=pt; if(k===b.road) o.selected=true; sel.append(o); });
-    sel.addEventListener("change",()=>{ b.road=sel.value; });
-    const ta=document.createElement("textarea"); ta.id="bkd"+i; ta.value=b.desc; ta.setAttribute("aria-label",`O que tem no bloco ${i+1}`); ta.addEventListener("input",()=>{ b.desc=ta.value; });
-    const rc=document.createElement("span"); rc.className="meta"; rc.id="bkc"+i;
-    const lbl=(t,f)=>{ const l=document.createElement("label"); l.className="label"; l.htmlFor=f; l.textContent=t; return l; };
-    card.append(h, lbl("Nome (use o mesmo nas fotos)","bkn"+i), nm, lbl("Estradas nas bordas","bkr"+i), sel, lbl("O que tem no bloco (em inglês)","bkd"+i), ta, rc);
-    box.append(card);
-  });
-  countRefs();
-}
-function refsOf(b){ const k=slug(b.name); return frames.filter(f=>f.sel && slug(f.label)===k); }
-function countRefs(){ BLOCKS.forEach((b,i)=>{ const el=$("#bkc"+i); if(el){ const n=refsOf(b).length; el.textContent = n ? `${n} foto(s) de referência` : "Nenhuma foto com esse nome ainda"; } }); }
-function sizeTxt(){ const v=parseInt($("#bkSize").value); return v>=1000 ? "1 km x 1 km" : `${v} m x ${v} m`; }
-function styleTxt(){ return $("#bkStyle").value==="lowpoly"
-  ? "Style: clean low-poly 3D game asset, flat colors with soft shading, readable shapes."
-  : "Style: realistic miniature diorama, detailed textures, photographic lighting, game-ready map tile."; }
-function seasonTxt(){ return $("#bkSeason").value==="wet"
-  ? "Rainy season: lush green vegetation, wet red mud on dirt roads, puddles, overcast soft light."
-  : "Dry season: bright midday sun, light dusty haze, dry grass, red dust on the roads."; }
-function blockPrompt(b,i){
-  const refs=refsOf(b);
-  return [
-    `Square isometric 3D terrain block (module ${i+1} of 8) of ${placeOf()}, representing ${sizeTxt()}, seen from above at a 45-degree isometric angle.`,
-    sidesTxt()+" Flat ground level at the top edges so it connects seamlessly to the other blocks.",
-    `Contents: ${b.desc}`,
-    `Road connections: ${ROADS[b.road][1]}, so neighbouring blocks line up.`,
-    kind==="sitio" ? `Typical of Rondônia smallholdings: red earth, barbed-wire fences with wooden posts, simple farm buildings, tropical trees.` : `Typical of the region: simple Brazilian interior architecture, utility poles with power lines, motorcycles and pickup trucks, tropical trees.`,
-    seasonTxt(), styleTxt(),
-    refs.length ? `Use the ${refs.length} attached reference photo(s) of this place for building shapes, colors and materials.` : "",
-    "No text, no labels."
-  ].filter(Boolean).join("\n");
-}
-function negTxt(){ return kind==="sitio" ? NEG.replace("skyscrapers, tall towers, European architecture,", "city buildings, urban streets, skyscrapers, European farmhouse, wheat fields, snow mountains,") : NEG; }
-const NEG = "land or scenery outside the square block, ground extending beyond the edges, surrounding terrain, skyscrapers, tall towers, European architecture, snow, beach, ocean, text, labels, watermark, blurry, cartoon, distorted perspective, tile with uneven edges, cropped tile";
-function sheetPrompt(){
-  return [
-    `Reference sheet of 8 square isometric 3D terrain blocks of ${placeOf()}, arranged in a 4 x 2 grid on a parchment background, each block labeled with a number from 1 to 8. Each block is an isolated architectural scale model (maquete) of ${sizeTxt()}, cut as a square slab with nothing outside it and vertical cross-section sides about ${Math.max(0.5,parseFloat($("#bkDepth").value)||1)} m deep showing red earth (terra vermelha) soil layers, rocks and roots, all at the same scale and the same 45-degree isometric angle so they can be combined into one map.`,
-    ...BLOCKS.map((b,i)=>`${i+1}) ${b.name}: ${b.desc} Roads: ${ROADS[b.road][1]}.`),
-    seasonTxt(), styleTxt(), "Consistent lighting and colors across all 8 blocks."
-  ].join("\n");
-}
-
-let bkMode="city";
-document.querySelectorAll("#bkModes .preset").forEach(b=>b.addEventListener("click",()=>{ bkMode=b.dataset.m;
-  document.querySelectorAll("#bkModes .preset").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
-  $("#bkSizeF").hidden = bkMode!=="tiles"; $("#bkOut").replaceChildren(); $("#bkSave").disabled=true; $("#bkSt").textContent=""; }));
-function sidesTxt(){ const d=Math.max(0.5,Math.min(50,parseFloat($("#bkDepth").value)||1)); return `Architectural scale model (maquete): the block is cut out as a perfect square slab, isolated and floating on a plain light grey background, with NOTHING outside the square: no surrounding land, no roads or trees beyond the edges. The four sides are clean vertical cross-section cuts about ${d} meter${d==1?"":"s"} deep, showing the underground: layers of red earth (terra vermelha), darker topsoil, laterite gravel, small rocks and tree roots, ${kind==="sitio"?"with the dirt road, fences and plant roots cut cleanly at the edge":"with the asphalt and sidewalks cut cleanly at the edge"}.`; }
-function citySizeEn(){ return ($("#bkCitySize").value||"1.2 km x 1.2 km").replace(/,/g,".").replace(/×/g,"x"); }
-function cityPrompt(){
-  const withMap=$("#bkMap").checked, refs=frames.filter(f=>f.sel).length;
-  const zones=BLOCKS.map((b,i)=>`- ${b.name}: ${b.desc}`).join("\n");
-  if(kind==="sitio"){ const {ha,side}=farmArea(); return [
-    `One single square isometric 3D architectural scale model (maquete) of the WHOLE rural farm (sítio) "${$("#bkCity").value}" in the Amazon interior of Rondônia, Brazil, seen from above at a 45-degree angle. The property is about ${ha.toFixed(1)} hectares, so the square block is about ${side} m x ${side} m.`,
-    withMap ? "Follow the attached satellite image / sketch EXACTLY for where the house, the coffee rows, the pasture paddocks, the fences, the forest and the water are. Do not invent new areas." : "Typical Rondônia lot layout: the house and the coffee near the dirt road at the front, the pasture in the middle, the forest reserve at the back.",
-    sidesTxt(),
-    "Areas of the farm to include:\n"+zones,
-    "Everything at real scale: one farmhouse and a few small farm buildings only, thousands of coffee plants in rows, fences with posts every 2.5 m.",
-    seasonTxt(), styleTxt(),
-    refs ? `Use the attached ${refs} photo(s) from this farm for the look of the house, the plants, the fences and the colors.` : "",
-    "No text, no labels."
-  ].filter(Boolean).join("\n"); }
-  return [
-    `One single square isometric 3D diorama block containing the WHOLE small town of ${$("#bkCity").value}, an Amazon-interior town in Rondônia, Brazil. The block represents about ${citySizeEn()} (the real urban area is about 1.5 km²) and includes only a thin rural edge inside the square, seen from above at a 45-degree isometric angle.`,
-    withMap ? "Follow the attached map / satellite image EXACTLY for the street grid, the block shapes, the main avenue, the central square, the parks, the rivers and where the forest and pasture are. Do not invent new streets and do not remove any." : "Simple grid of streets typical of planned Rondônia colonization towns, with one main avenue crossing the center.",
-    sidesTxt(),
-    "Town zones to include:\n"+zones,
-    "Buildings are low: almost all one story, a few two stories, no tall buildings. Simple Brazilian interior architecture, painted walls, metal roofs, walls and gates around houses, utility poles with power lines, motorcycles and pickup trucks, many tropical trees.",
-    seasonTxt(), styleTxt(),
-    refs ? `Use the attached ${refs} street photo(s) from the town for the look of the houses, shops, trees, sidewalks and colors.` : "",
-    "No text, no labels."
-  ].filter(Boolean).join("\n");
-}
-let lastPromptsTxt = "";
-function addOut(title, text){
-  const wrap=document.createElement("div"); wrap.className="field";
-  const top=document.createElement("div"); top.className="toolbar";
-  const t=document.createElement("span"); t.className="label"; t.textContent=title;
-  const pre=document.createElement("pre"); pre.className="prompt"; pre.textContent=text;
-  const b=document.createElement("button"); b.className="btn sm"; b.type="button"; b.textContent="Copiar";
-  b.addEventListener("click", async()=>{ const o=b.textContent; try{ await navigator.clipboard.writeText(text); b.textContent="Copiado"; }catch{ const r=document.createRange(); r.selectNodeContents(pre); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent="Selecionado: Ctrl+C"; } setTimeout(()=>b.textContent=o,1600); });
-  top.append(t,b); wrap.append(top,pre); $("#bkOut").append(wrap);
-}
-$("#bkGen").addEventListener("click", ()=>{
-  $("#bkOut").replaceChildren();
-  const parts=[];
-  if(bkMode==="city"){ const cp=cityPrompt(), nm=kind==="sitio"?"Sítio inteiro":"Cidade inteira", ng=negTxt(); addOut(nm+": 1 bloco", cp); addOut("Negativo", ng);
-    lastPromptsTxt = "=== "+nm.toUpperCase()+" (1 BLOCO) ===\n"+cp+"\n\nNEGATIVE: "+ng+"\n\nAnexe junto: "+($("#bkMap").checked?"o mapa/satélite + ":"")+"2 a 4 fotos (passo 03).";
-    $("#bkSave").disabled=false; $("#bkSt").textContent="Prompt pronto. Anexe o mapa e algumas fotos no gerador."; return; }
-  const sp=sheetPrompt(); addOut("Folha com os 8 blocos juntos", sp); parts.push("=== FOLHA COM OS 8 BLOCOS ===\n"+sp+"\n\nNEGATIVE: "+negTxt());
-  BLOCKS.forEach((b,i)=>{ const p=blockPrompt(b,i); addOut(`Bloco ${i+1}: ${b.name}`, p); parts.push(`=== BLOCO ${i+1}: ${b.name} ===\n${p}\n\nNEGATIVE: ${negTxt()}\nFotos de referência: ${refsOf(b).length}`); });
-  addOut("Negativo (para todos)", negTxt());
-  lastPromptsTxt = parts.join("\n\n");
-  $("#bkSave").disabled=false;
-  $("#bkSt").textContent="Prompts prontos. Eles também vão dentro do ZIP do passo 04.";
-});
-async function saveText(name, text){
-  if(downloads){ return downloads.save({ filename:name, data:text }); }
-  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
-}
-$("#bkSave").addEventListener("click", async()=>{
-  try{ await saveText(`${slug($("#prefix").value)||kind}_prompts_blocos.txt`, lastPromptsTxt); $("#bkSt").textContent="Prompts baixados."; }
-  catch(e){ $("#bkSt").textContent = e.code==="declined" ? "Download cancelado." : "Não deu para baixar: "+(e.message||e.code||e); }
-});
-renderBlocks();
-
-function fillNames(){ $("#bkNames").replaceChildren(...BLOCKS.map(b=>Object.assign(document.createElement("option"),{value:b.name}))); }
-fillNames(); $("#blocks").addEventListener("input", fillNames);
-
 
 </script>
 

@@ -1,11 +1,14 @@
-# Quadro a Quadro — Jogo 3D
+# Quadro a Quadro — Personagens
 
-Extrator de quadros para o jogo 3D de Rondônia: transforma um vídeo da cidade (ex.: Ministro Andreazza) em fotos boas para gerar os blocos 3D.
+Extrator de quadros para character design: tira do vídeo as melhores imagens de personagens (rosto, corpo inteiro, roupas, poses, cores) e baixa tudo em ZIP para alimentar uma IA.
 
 - Escolhe o vídeo do celular, extrai 1 quadro a cada X segundos, dá nota de nitidez e pula quadros repetidos.
-- Três modos: **Foto → 3D** (Hunyuan3D, TRELLIS, Tripo), **Fotogrametria** (RealityScan, Polycam) e **Referência/textura**.
-- Dá nome do lugar a cada foto e baixa um ZIP separado em pastas.
+- Três modos: **Referências nítidas**, **Poses em sequência** e **Detalhes e cores**.
+- Dá o nome do personagem a cada imagem e organiza o ZIP em pastas por personagem.
+- **Baixar ZIP com TODAS as fotos** leva tudo o que foi extraído, sem depender de marcação. O outro botão leva só as marcadas.
 - Tudo roda no navegador: o vídeo não é enviado para servidor nenhum.
+
+Use só vídeos seus ou com permissão de quem os fez.
 
 ## Rodar no computador
 
