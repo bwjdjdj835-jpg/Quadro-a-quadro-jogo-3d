@@ -204,6 +204,7 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
         <button class="btn pri" id="shareBtn" disabled hidden>Compartilhar com app de IA</button>
         <button class="btn pri" id="zipAll" disabled>Baixar ZIP com TODAS as fotos</button>
         <button class="btn" id="dirBtn" disabled>Salvar numa pasta (sem ZIP)</button>
+        <button class="btn pri" id="sheetsZipBtn" disabled>ZIP com folhas de contato (20 fotos por folha)</button>
         <button class="btn" id="sheetBtn" disabled>Baixar folha de contato (1 imagem)</button>
         <button class="btn" id="looseBtn" disabled>Baixar fotos soltas (JPG)</button>
         <button class="btn" id="zip" disabled>Baixar ZIP só das marcadas</button>
@@ -427,7 +428,7 @@ function render(){
   const box = $("#sheet"); box.replaceChildren();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -451,7 +452,7 @@ function render(){
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -524,23 +525,23 @@ async function saveBlob(name, blob){
   if(downloads){ return downloads.save({ filename:name, data:blob }); }
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
 }
-async function contactSheet(sel, blobs){
+async function contactSheet(sel, blobs, o={}){
   /* leve para celular: a folha inteira fica abaixo de ~6 milhões de pixels e cada foto é aberta e fechada uma de cada vez */
-  const n=Math.min(sel.length, 36), cols = n<=4?2 : n<=9?3 : n<=16?4 : n<=25?5 : 6, pad=8, labH=26, titleH=46;
+  const off=o.offset||0, n=Math.min(sel.length, o.cap||36), cols = o.cols || (n<=4?2 : n<=9?3 : n<=16?4 : n<=25?5 : 6), pad=8, labH=26, titleH=46;
   const ratio = Math.max(...sel.slice(0,n).map(f=>f.h&&f.w ? (f.h*keepOrOne(f))/f.w : 0.6), 0.5);
   const rows=Math.ceil(n/cols), budget=6e6;
   let cellW = Math.floor(Math.sqrt(budget/(cols*rows*ratio*1.15))); cellW = Math.max(140, Math.min(420, cellW));
   const cellH = Math.round(cellW*ratio);
   const c=document.createElement("canvas"); c.width=cols*(cellW+pad)+pad; c.height=titleH+rows*(cellH+labH+pad)+pad;
   const x=c.getContext("2d"); x.fillStyle="#ffffff"; x.fillRect(0,0,c.width,c.height);
-  x.fillStyle="#22201d"; x.font="bold 24px Barlow, Arial, sans-serif"; x.fillText(($("#prefix").value||"Fotos")+` — ${n} fotos`, pad, 32);
+  x.fillStyle="#22201d"; x.font="bold 24px Barlow, Arial, sans-serif"; x.fillText(($("#prefix").value||"Fotos")+(o.title ? ` — ${o.title}` : ` — ${n} fotos`), pad, 32);
   for(let i=0;i<n;i++){
     const b = await createImageBitmap(blobs[i]);
     const cx=pad+(i%cols)*(cellW+pad), cy=titleH+Math.floor(i/cols)*(cellH+labH+pad);
     const s=Math.min(cellW/b.width, cellH/b.height), w=b.width*s, h=b.height*s;
     x.fillStyle="#eeeae4"; x.fillRect(cx,cy,cellW,cellH); x.drawImage(b, cx+(cellW-w)/2, cy+(cellH-h)/2, w, h);
     b.close&&b.close();
-    x.fillStyle="#b4471f"; x.fillRect(cx,cy,36,24); x.fillStyle="#fff"; x.font="bold 16px Barlow, Arial, sans-serif"; x.fillText(String(i+1), cx+8, cy+18);
+    x.fillStyle="#b4471f"; x.fillRect(cx,cy,48,24); x.fillStyle="#fff"; x.font="bold 16px Barlow, Arial, sans-serif"; x.fillText(String(i+1+off), cx+8, cy+18);
     x.fillStyle="#22201d"; x.font="14px Barlow, Arial, sans-serif"; x.fillText(`${sel[i].label||"sem nome"} · ${fmt(sel[i].t)}`, cx, cy+cellH+18);
   }
   const out = await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
@@ -556,6 +557,28 @@ $("#sheetBtn").addEventListener("click", async()=>{
     await saveBlob(`${slug($("#prefix").value)||"quadros"}_folha-de-contato.jpg`, sheet);
     show(st, sel.length>36 ? `Folha baixada com as 36 primeiras fotos (de ${sel.length}). Desmarque algumas para caber todas.` : `Folha de contato baixada com ${sel.length} fotos.`, "ok");
   }catch(e){ show(st, expErr(e), e.code==="declined"?"":"err"); } finally{ $("#sheetBtn").disabled=false; }
+});
+const PER_SHEET = 20;
+$("#sheetsZipBtn").addEventListener("click", async()=>{
+  const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return;
+  if(!window.JSZip){ show(st,"O compactador não carregou. Recarregue a página.","err"); return; }
+  const btn=$("#sheetsZipBtn"); btn.disabled=true;
+  try{
+    const zip=new JSZip(), prefix=slug($("#prefix").value)||"personagem", parts=Math.ceil(sel.length/PER_SHEET), pad2=String(parts).length, lines=[];
+    for(let p=0;p<parts;p++){
+      const a=p*PER_SHEET, group=sel.slice(a,a+PER_SHEET), b=a+group.length;
+      show(st,`Montando a folha ${p+1} de ${parts}…`);
+      const blobs=await croppedBlobs(group);
+      const sheet=await contactSheet(group, blobs, { cap:PER_SHEET, cols:5, offset:a, title:`fotos ${a+1} a ${b} de ${sel.length}` });
+      const name=`${prefix}_folha_${String(p+1).padStart(pad2,"0")}_de_${String(parts).padStart(pad2,"0")}_fotos_${a+1}-${b}.jpg`;
+      zip.file(name, sheet); lines.push(`${name}: fotos ${a+1} a ${b}`);
+    }
+    zip.file("LEIA-ME.txt", `${parts} folhas de contato com ${sel.length} fotos (até ${PER_SHEET} por folha, em grade de 5 colunas).\nO número no canto de cada foto é a posição dela na sequência.\nMande uma folha por vez para a IA.\n\n`+lines.join("\n")+"\n");
+    show(st,"Compactando…");
+    const blob=await zip.generateAsync({ type:"blob", compression:"STORE" });
+    await saveBlob(`${prefix}_folhas-de-contato.zip`, blob);
+    show(st,`ZIP pronto: ${parts} folhas com ${sel.length} fotos. Procure na pasta Downloads, abra o ZIP e mande uma folha por vez.`,"ok");
+  }catch(e){ show(st, expErr(e), e.code==="declined"?"":"err"); } finally{ btn.disabled=false; updateCounts(); }
 });
 $("#looseBtn").addEventListener("click", async()=>{
   const st=$("#zst"), sel=frames.filter(f=>f.sel); if(!sel.length) return; $("#looseBtn").disabled=true;
