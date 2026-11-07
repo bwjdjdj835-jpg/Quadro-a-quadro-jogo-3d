@@ -106,7 +106,9 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
 .sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
-#linkBox{display:flex;flex-direction:column;gap:8px}
+#linkBox{display:flex;flex-direction:column;gap:10px}
+#linkItems{display:flex;flex-direction:column;gap:12px}
+.lrow{display:flex;flex-direction:column;gap:6px}
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -209,17 +211,15 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
       </div>
       <div class="sharebox">
         <span class="label">Link temporário para mandar para uma IA</span>
-        <p class="note">Envia as fotos marcadas (até 120) para um endereço seu e gera um link que expira. Quem tiver o link vê as fotos até lá, então só mande para quem você quer que veja. Só IAs que abrem links conseguem ler; nas outras, anexe as fotos.</p>
+        <p class="note">Envia as fotos marcadas para um endereço seu e gera um link que expira. Cada link leva até 130 fotos; se tiver mais, o app divide sozinho em até 4 links. Quem tiver o link vê as fotos até lá, então só mande para quem você quer que veja. Só IAs que abrem links conseguem ler; nas outras, anexe as fotos.</p>
         <div class="fields">
           <div class="field"><label class="label" for="shareHours">Vale por</label><select id="shareHours"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24" selected>24 horas</option></select></div>
           <div class="field"><label class="label" for="shareCode">Código de envio</label><input type="password" id="shareCode" autocomplete="off" autocapitalize="none" placeholder="Digite uma vez"></div>
         </div>
         <div class="row"><button class="btn pri" id="linkBtn" disabled>Gerar link temporário</button></div>
         <div id="linkBox" hidden>
-          <label class="label" for="linkUrl">Link para a IA</label>
-          <input type="text" id="linkUrl" readonly>
-          <span class="meta" id="linkExp"></span>
-          <div class="row"><button class="btn sm pri" id="copyLink" type="button">Copiar link</button><button class="btn sm" id="copyUrls" type="button">Copiar links das imagens</button></div>
+          <div id="linkItems"></div>
+          <div class="row"><button class="btn sm pri" id="copyAll" type="button">Copiar todos os links</button><button class="btn sm" id="copyUrls" type="button">Copiar links das imagens</button></div>
         </div>
       </div>
       <div id="zst" class="status" hidden></div>
@@ -602,7 +602,7 @@ $("#dirBtn").addEventListener("click", async()=>{
 
 
 /* ---------- link temporário (vale por algumas horas) ---------- */
-const SHARE_MAX = 120;
+const SHARE_MAX = 130, SHARE_LINKS = 4;
 try{ const c = localStorage.getItem("uploadCode"); if(c) $("#shareCode").value = c; }catch{}
 function rid(){ const a = new Uint8Array(8); crypto.getRandomValues(a); return [...a].map(b=>b.toString(16).padStart(2,"0")).join(""); }
 async function fitForUpload(blob){
@@ -627,43 +627,63 @@ async function sendOne(share, name, blob, code){
     }catch(e){ if(e.fatal || n===1) throw e; await new Promise(r=>setTimeout(r,600)); }
   }
 }
+/* envia um grupo de fotos e fecha um link só para elas */
+async function shareBatch(group, blobs, code, hours, label, st){
+  const share = rid(), items = new Array(group.length);
+  let next = 0, done = 0, failed = false;
+  const worker = async () => {
+    while(!failed && next < group.length){
+      const i = next++, { f, g } = group[i];
+      try{ const b = await fitForUpload(blobs[g]); const name = fileName(f, g); items[i] = { name, url: await sendOne(share, name, b, code) }; }
+      catch(e){ failed = true; throw e; }
+      done++; show(st, `${label}: enviando ${done} de ${group.length}…`);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  show(st, `${label}: gerando o link…`);
+  const r = await fetch("/api/finish", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ share, hours, items }) });
+  if(!r.ok) throw new Error("Não deu para gerar o link (erro "+r.status+").");
+  const j = await r.json();
+  return { share, count: items.length, urls: items.map(x=>x.url), expiresAt: j.expiresAt };
+}
+function addLinkRow(n, total, res){
+  const url = `${location.origin}/g/${res.share}`;
+  const box = document.createElement("div"); box.className = "lrow"; box.dataset.url = url; box.dataset.urls = res.urls.join("\n");
+  const inp = document.createElement("input"); inp.type = "text"; inp.readOnly = true; inp.value = url; inp.id = "lu"+n;
+  const lab = document.createElement("label"); lab.className = "label"; lab.htmlFor = inp.id;
+  lab.textContent = total > 1 ? `Parte ${n} de ${total} · ${res.count} fotos` : `Link para a IA · ${res.count} fotos`;
+  const exp = document.createElement("span"); exp.className = "meta"; exp.textContent = `Vale até ${new Date(res.expiresAt).toLocaleString("pt-BR",{ dateStyle:"short", timeStyle:"short" })}.`;
+  const cp = document.createElement("button"); cp.type = "button"; cp.className = "btn sm pri"; cp.textContent = "Copiar este link";
+  cp.addEventListener("click", ()=>copyText(url, total > 1 ? `Link da parte ${n} copiado.` : "Link copiado.", inp));
+  const row = document.createElement("div"); row.className = "row"; row.append(cp);
+  box.append(lab, inp, exp, row); $("#linkItems").append(box);
+}
 $("#linkBtn").addEventListener("click", async () => {
   const st = $("#zst"), sel = frames.filter(f=>f.sel);
   if(!sel.length) return;
-  if(sel.length > SHARE_MAX){ show(st, `Para o link, marque no máximo ${SHARE_MAX} fotos (agora são ${sel.length}). Use "Marcar só as nítidas" ou desmarque algumas. O ZIP continua levando todas.`, "err"); return; }
+  const parts = Math.ceil(sel.length / SHARE_MAX);
+  if(parts > SHARE_LINKS){ show(st, `São fotos demais para os links: no máximo ${SHARE_MAX*SHARE_LINKS} (agora são ${sel.length}). Desmarque algumas ou use "Marcar só as nítidas". O ZIP continua levando todas.`, "err"); return; }
   const code = $("#shareCode").value.trim();
   if(!code){ show(st, "Digite o código de envio.", "err"); $("#shareCode").focus(); return; }
-  const hours = parseInt($("#shareHours").value) || 24, share = rid();
-  const btn = $("#linkBtn"); btn.disabled = true; $("#linkBox").hidden = true;
+  const hours = parseInt($("#shareHours").value) || 24;
+  const btn = $("#linkBtn"); btn.disabled = true; $("#linkBox").hidden = true; $("#linkItems").replaceChildren();
+  const results = [];
   try{
     show(st, "Preparando as fotos…");
-    const blobs = await croppedBlobs(sel), items = new Array(sel.length);
-    let next = 0, done = 0, failed = false;
-    const worker = async () => {
-      while(!failed && next < sel.length){
-        const i = next++;
-        try{ const b = await fitForUpload(blobs[i]); const name = fileName(sel[i], i); items[i] = { name, url: await sendOne(share, name, b, code) }; }
-        catch(e){ failed = true; throw e; }
-        done++; show(st, `Enviando ${done} de ${sel.length}…`);
-      }
-    };
-    await Promise.all([worker(), worker(), worker()]);
-    show(st, "Gerando o link…");
-    const r = await fetch("/api/finish", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ share, hours, items }) });
-    if(!r.ok) throw new Error("Não deu para gerar o link (erro "+r.status+").");
-    const j = await r.json();
+    const blobs = await croppedBlobs(sel), size = Math.ceil(sel.length / parts);
+    for(let p = 0; p < parts; p++){
+      const group = []; for(let g = p*size; g < Math.min(sel.length, (p+1)*size); g++) group.push({ f: sel[g], g });
+      const res = await shareBatch(group, blobs, code, hours, parts > 1 ? `Link ${p+1} de ${parts}` : "Link", st);
+      results.push(res); addLinkRow(p+1, parts, res); $("#linkBox").hidden = false;
+    }
     try{ localStorage.setItem("uploadCode", code); }catch{}
-    $("#linkUrl").value = `${location.origin}/g/${share}`;
-    $("#linkBox").dataset.urls = items.map(x=>x.url).join("\n");
-    $("#linkExp").textContent = `${items.length} fotos. Vale até ${new Date(j.expiresAt).toLocaleString("pt-BR",{ dateStyle:"short", timeStyle:"short" })}.`;
-    $("#linkBox").hidden = false;
-    show(st, "Link pronto. Copie e mande para a IA.", "ok");
-  }catch(e){ show(st, e.message || "Não deu para enviar.", "err"); }
+    show(st, parts > 1 ? `${parts} links prontos. Mande todos para a IA.` : "Link pronto. Copie e mande para a IA.", "ok");
+  }catch(e){ show(st, (e.message || "Não deu para enviar.") + (results.length ? ` (${results.length} de ${parts} links já ficaram prontos e continuam abaixo.)` : ""), "err"); }
   finally{ btn.disabled = false; updateCounts(); }
 });
-async function copyText(txt, okMsg){ try{ await navigator.clipboard.writeText(txt); show($("#zst"), okMsg, "ok"); }catch{ $("#linkUrl").select(); show($("#zst"), "Não consegui copiar sozinho. Segure o link e copie.", "err"); } }
-$("#copyLink").addEventListener("click", ()=>copyText($("#linkUrl").value, "Link copiado."));
-$("#copyUrls").addEventListener("click", ()=>copyText($("#linkBox").dataset.urls||"", "Links das imagens copiados, um por linha."));
+async function copyText(txt, okMsg, el){ try{ await navigator.clipboard.writeText(txt); show($("#zst"), okMsg, "ok"); }catch{ if(el && el.select) el.select(); show($("#zst"), "Não consegui copiar sozinho. Segure o link e copie.", "err"); } }
+$("#copyAll").addEventListener("click", ()=>{ const rows = [...document.querySelectorAll("#linkItems .lrow")]; copyText(rows.map((r,i)=> rows.length>1 ? `Parte ${i+1}: ${r.dataset.url}` : r.dataset.url).join("\n"), rows.length>1 ? "Links de todas as partes copiados." : "Link copiado."); });
+$("#copyUrls").addEventListener("click", ()=>copyText([...document.querySelectorAll("#linkItems .lrow")].map(r=>r.dataset.urls).join("\n"), "Links das imagens copiados, um por linha."));
 
 /* ---------- utilidades ---------- */
 function fmt(t){ const m=Math.floor(t/60), s=(t%60); return `${String(m).padStart(2,"0")}:${s.toFixed(1).padStart(4,"0")}`; }
