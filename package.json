@@ -1,0 +1,9 @@
+{
+  "name": "quadro-a-quadro-personagens",
+  "private": true,
+  "type": "module",
+  "description": "Extrator de quadros para character design, com link temporário das fotos",
+  "dependencies": {
+    "@vercel/blob": "*"
+  }
+}

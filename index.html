@@ -105,6 +105,8 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer .row{justify-content:center;color:#f1ece6}
 .viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
+.sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+#linkBox{display:flex;flex-direction:column;gap:8px}
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -204,6 +206,21 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
         <button class="btn" id="looseBtn" disabled>Baixar fotos soltas (JPG)</button>
         <button class="btn" id="zip" disabled>Baixar ZIP só das marcadas</button>
         <span class="meta" id="zipInfo"></span>
+      </div>
+      <div class="sharebox">
+        <span class="label">Link temporário para mandar para uma IA</span>
+        <p class="note">Envia as fotos marcadas (até 120) para um endereço seu e gera um link que expira. Quem tiver o link vê as fotos até lá, então só mande para quem você quer que veja. Só IAs que abrem links conseguem ler; nas outras, anexe as fotos.</p>
+        <div class="fields">
+          <div class="field"><label class="label" for="shareHours">Vale por</label><select id="shareHours"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24" selected>24 horas</option></select></div>
+          <div class="field"><label class="label" for="shareCode">Código de envio</label><input type="password" id="shareCode" autocomplete="off" autocapitalize="none" placeholder="Digite uma vez"></div>
+        </div>
+        <div class="row"><button class="btn pri" id="linkBtn" disabled>Gerar link temporário</button></div>
+        <div id="linkBox" hidden>
+          <label class="label" for="linkUrl">Link para a IA</label>
+          <input type="text" id="linkUrl" readonly>
+          <span class="meta" id="linkExp"></span>
+          <div class="row"><button class="btn sm pri" id="copyLink" type="button">Copiar link</button><button class="btn sm" id="copyUrls" type="button">Copiar links das imagens</button></div>
+        </div>
       </div>
       <div id="zst" class="status" hidden></div>
     </section>
@@ -410,7 +427,7 @@ function render(){
   const box = $("#sheet"); box.replaceChildren();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -434,7 +451,7 @@ function render(){
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
@@ -583,6 +600,70 @@ $("#dirBtn").addEventListener("click", async()=>{
   finally{ $("#dirBtn").disabled=false; }
 });
 
+
+/* ---------- link temporário (vale por algumas horas) ---------- */
+const SHARE_MAX = 120;
+try{ const c = localStorage.getItem("uploadCode"); if(c) $("#shareCode").value = c; }catch{}
+function rid(){ const a = new Uint8Array(8); crypto.getRandomValues(a); return [...a].map(b=>b.toString(16).padStart(2,"0")).join(""); }
+async function fitForUpload(blob){
+  if(blob.size <= 4*1048576) return blob;
+  const bmp = await createImageBitmap(blob), k = Math.min(1, 2048/Math.max(bmp.width,bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width*k); c.height = Math.round(bmp.height*k);
+  c.getContext("2d").drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+  let out = await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+  if(out && out.size > 4*1048576) out = await new Promise(r=>c.toBlob(r,"image/jpeg",0.7));
+  if(!out || out.size > 4.3*1048576) throw new Error("Uma das fotos ficou grande demais para enviar. Escolha \"Tamanho máx.\" 1600 px no passo 02 e extraia de novo.");
+  return out;
+}
+async function sendOne(share, name, blob, code){
+  for(let n=0; n<2; n++){
+    try{
+      const r = await fetch(`/api/upload?share=${share}&name=${encodeURIComponent(name)}`, { method:"PUT", headers:{ "x-upload-code":code, "content-type":"application/octet-stream" }, body: blob });
+      if(r.status===401) throw Object.assign(new Error("Código de envio errado."),{fatal:true});
+      if(r.status===503) throw Object.assign(new Error("O site ainda não tem o código de envio configurado."),{fatal:true});
+      if(r.status===404) throw Object.assign(new Error("O envio só funciona no site publicado, não no computador local."),{fatal:true});
+      if(!r.ok) throw new Error("Falha ao enviar uma foto (erro "+r.status+").");
+      return (await r.json()).url;
+    }catch(e){ if(e.fatal || n===1) throw e; await new Promise(r=>setTimeout(r,600)); }
+  }
+}
+$("#linkBtn").addEventListener("click", async () => {
+  const st = $("#zst"), sel = frames.filter(f=>f.sel);
+  if(!sel.length) return;
+  if(sel.length > SHARE_MAX){ show(st, `Para o link, marque no máximo ${SHARE_MAX} fotos (agora são ${sel.length}). Use "Marcar só as nítidas" ou desmarque algumas. O ZIP continua levando todas.`, "err"); return; }
+  const code = $("#shareCode").value.trim();
+  if(!code){ show(st, "Digite o código de envio.", "err"); $("#shareCode").focus(); return; }
+  const hours = parseInt($("#shareHours").value) || 24, share = rid();
+  const btn = $("#linkBtn"); btn.disabled = true; $("#linkBox").hidden = true;
+  try{
+    show(st, "Preparando as fotos…");
+    const blobs = await croppedBlobs(sel), items = new Array(sel.length);
+    let next = 0, done = 0, failed = false;
+    const worker = async () => {
+      while(!failed && next < sel.length){
+        const i = next++;
+        try{ const b = await fitForUpload(blobs[i]); const name = fileName(sel[i], i); items[i] = { name, url: await sendOne(share, name, b, code) }; }
+        catch(e){ failed = true; throw e; }
+        done++; show(st, `Enviando ${done} de ${sel.length}…`);
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    show(st, "Gerando o link…");
+    const r = await fetch("/api/finish", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ share, hours, items }) });
+    if(!r.ok) throw new Error("Não deu para gerar o link (erro "+r.status+").");
+    const j = await r.json();
+    try{ localStorage.setItem("uploadCode", code); }catch{}
+    $("#linkUrl").value = `${location.origin}/g/${share}`;
+    $("#linkBox").dataset.urls = items.map(x=>x.url).join("\n");
+    $("#linkExp").textContent = `${items.length} fotos. Vale até ${new Date(j.expiresAt).toLocaleString("pt-BR",{ dateStyle:"short", timeStyle:"short" })}.`;
+    $("#linkBox").hidden = false;
+    show(st, "Link pronto. Copie e mande para a IA.", "ok");
+  }catch(e){ show(st, e.message || "Não deu para enviar.", "err"); }
+  finally{ btn.disabled = false; updateCounts(); }
+});
+async function copyText(txt, okMsg){ try{ await navigator.clipboard.writeText(txt); show($("#zst"), okMsg, "ok"); }catch{ $("#linkUrl").select(); show($("#zst"), "Não consegui copiar sozinho. Segure o link e copie.", "err"); } }
+$("#copyLink").addEventListener("click", ()=>copyText($("#linkUrl").value, "Link copiado."));
+$("#copyUrls").addEventListener("click", ()=>copyText($("#linkBox").dataset.urls||"", "Links das imagens copiados, um por linha."));
 
 /* ---------- utilidades ---------- */
 function fmt(t){ const m=Math.floor(t/60), s=(t%60); return `${String(m).padStart(2,"0")}:${s.toFixed(1).padStart(4,"0")}`; }
