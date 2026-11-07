@@ -681,7 +681,21 @@ $("#linkBtn").addEventListener("click", async () => {
   }catch(e){ show(st, (e.message || "Não deu para enviar.") + (results.length ? ` (${results.length} de ${parts} links já ficaram prontos e continuam abaixo.)` : ""), "err"); }
   finally{ btn.disabled = false; updateCounts(); }
 });
-async function copyText(txt, okMsg, el){ try{ await navigator.clipboard.writeText(txt); show($("#zst"), okMsg, "ok"); }catch{ if(el && el.select) el.select(); show($("#zst"), "Não consegui copiar sozinho. Segure o link e copie.", "err"); } }
+function legacyCopy(txt){
+  const t = document.createElement("textarea"); t.value = txt; t.setAttribute("readonly","");
+  t.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px";
+  document.body.appendChild(t); t.focus(); t.select(); t.setSelectionRange(0, txt.length);
+  let ok = false; try{ ok = document.execCommand("copy"); }catch{}
+  t.remove(); return ok;
+}
+async function copyText(txt, okMsg, el){
+  let ok = false;
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(txt); ok = true; } }catch{}
+  if(!ok) ok = legacyCopy(txt);
+  if(!ok && navigator.share){ try{ await navigator.share({ text: txt }); ok = true; okMsg = "Escolha onde enviar o link."; }catch(e){ if(e && e.name === "AbortError") return; } }
+  if(ok) show($("#zst"), okMsg, "ok");
+  else { if(el && el.select){ el.focus(); el.select(); } show($("#zst"), "O celular bloqueou a cópia. O link já está selecionado: segure nele e toque em Copiar.", "err"); }
+}
 $("#copyAll").addEventListener("click", ()=>{ const rows = [...document.querySelectorAll("#linkItems .lrow")]; copyText(rows.map((r,i)=> rows.length>1 ? `Parte ${i+1}: ${r.dataset.url}` : r.dataset.url).join("\n"), rows.length>1 ? "Links de todas as partes copiados." : "Link copiado."); });
 $("#copyUrls").addEventListener("click", ()=>copyText([...document.querySelectorAll("#linkItems .lrow")].map(r=>r.dataset.urls).join("\n"), "Links das imagens copiados, um por linha."));
 
