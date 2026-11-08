@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Quadro a Quadro · Personagens</title>
+<meta name="description" content="Ferramenta para extrair quadros de vídeos e criar fichas e prompts de character design. Roda no navegador; o vídeo não é enviado.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: bancada de referência — vídeo no topo, passos numerados e folha de quadros embaixo */
@@ -106,6 +107,7 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
 .sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+input.codigo{-webkit-text-security:disc}
 .btn.limpar{color:var(--bad);border-color:var(--bad)}
 #limparRow{margin-top:8px}
 .sharebox.destaque{border:2px solid var(--accent);border-radius:12px;padding:14px}
@@ -257,14 +259,14 @@ details.sharebox:not([open]){gap:0}
     <div class="field"><label class="label" for="perNotas">O que você quer neste personagem (opcional)</label><textarea id="perNotas" placeholder="Ex.: jovem, cicatriz no olho, roupa de viajante, cores quentes"></textarea></div>
 
     <div class="sharebox destaque">
-      <span class="label">Gerar o prompt para o Gemini · grátis, sem senha</span>
+      <span class="label">Gerar o prompt para o Gemini · grátis, sem código</span>
       <p class="note">Monta o pedido pronto. Depois é só copiar, colar no Gemini e anexar as fotos marcadas (fotos soltas ou a folha de contato do passo 05).</p>
       <div class="row"><button class="btn pri" type="button" id="cMontar" disabled>Gerar prompt para o Gemini</button></div>
     </div>
     <details class="sharebox">
       <summary class="label">Opção avançada · a IA do app analisa os quadros (precisa do código de envio)</summary>
       <p class="note">Manda até 6 quadros marcados (reduzidos) para a IA, que identifica o vídeo e devolve a ficha e os prompts prontos. Precisa do código de envio (a variável UPLOAD_CODE da Vercel) e da chave da IA configurada no site. Se você não tem esse código, use o botão acima.</p>
-      <div class="fields"><div class="field"><label class="label" for="aiCode">Código de envio</label><input type="password" id="aiCode" autocomplete="off" autocapitalize="none" placeholder="Digite uma vez"></div></div>
+      <div class="fields"><div class="field"><label class="label" for="aiCode">Código de envio</label><input type="text" class="codigo" id="aiCode" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Digite uma vez"></div></div>
       <div class="row"><button class="btn" type="button" id="cAi" disabled>Gerar com a IA do app</button></div>
     </details>
 
@@ -296,7 +298,7 @@ details.sharebox:not([open]){gap:0}
         <p class="note">Envia as fotos marcadas para um endereço seu e gera um link que expira. Cada link leva até 130 fotos; se tiver mais, o app divide sozinho em até 4 links. Quem tiver o link vê as fotos até lá, então só mande para quem você quer que veja. Só IAs que abrem links conseguem ler; nas outras, anexe as fotos.</p>
         <div class="fields">
           <div class="field"><label class="label" for="shareHours">Vale por</label><select id="shareHours"><option value="1">1 hora</option><option value="6">6 horas</option><option value="24" selected>24 horas</option></select></div>
-          <div class="field"><label class="label" for="shareCode">Código de envio</label><input type="password" id="shareCode" autocomplete="off" autocapitalize="none" placeholder="Digite uma vez"></div>
+          <div class="field"><label class="label" for="shareCode">Código de envio</label><input type="text" class="codigo" id="shareCode" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Digite uma vez"></div>
         </div>
         <div class="row"><button class="btn pri" id="linkBtn" disabled>Gerar link temporário</button></div>
         <div id="linkBox" hidden>
