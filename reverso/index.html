@@ -192,7 +192,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     </div>
     <details class="box" open>
       <summary>Analisar com a IA do app · ela faz as 6 etapas sozinha (precisa do código de envio)</summary>
-      <p class="note">Envia até 8 referências marcadas (reduzidas) e o seu pedido. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
+      <p class="note">A IA lê TODAS as referências marcadas antes de criar: junta 16 quadros por folha e lê em lotes (a engenharia reversa), depois faz as 6 etapas com a leitura de tudo. Cada lote é uma chamada paga à API. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
       <div class="fields"><div class="field"><label class="label" for="code">Código de envio</label><input type="text" class="codigo" id="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Digite uma vez"></div></div>
       <div class="row"><button class="btn" type="button" id="ia">Analisar com a IA do app</button><span class="meta" id="iaInfo"></span></div>
       <div id="iaStatus" class="status" hidden></div>
@@ -219,7 +219,7 @@ const $ = s => document.querySelector(s);
 const vid = $("#vid"), work = $("#work"), wctx = work.getContext("2d", { willReadFrequently:true }), small = $("#small"), sctx = small.getContext("2d", { willReadFrequently:true });
 const refs = []; // {id, blob, url, w, h, score|null, sel, nome, origem}
 let nextId = 1, running = false, cancel = false;
-const MAX_IA = 8, MAX_FOLHA = 12;
+const MAX_IA = 8, MAX_FOLHA = 12, POR_FOLHA = 16, FOLHAS_LOTE = 6, MAX_TOTAL = 960;
 
 function show(el, msg, kind){ el.hidden = !msg; el.textContent = msg || ""; el.className = "status" + (kind ? " " + kind : ""); }
 const status = (m,k) => show($("#st"), m, k);
@@ -323,7 +323,8 @@ function render(){
   const g = $("#grid"); g.replaceChildren();
   const nSel = refs.filter(r => r.sel).length;
   $("#count").textContent = `${refs.length} referências · ${nSel} marcadas`;
-  $("#iaInfo").textContent = nSel ? `a IA lê ${Math.min(nSel, MAX_IA)} de ${nSel}` : "sem referências marcadas";
+  const nUse = Math.min(nSel, MAX_TOTAL), nF = Math.ceil(nUse/POR_FOLHA), nL = Math.ceil(nF/FOLHAS_LOTE);
+  $("#iaInfo").textContent = nSel ? `a IA lê ${nUse === nSel ? "todas as" : `${nUse} de`} ${nSel} referências, em ${nL} lote${nL > 1 ? "s" : ""}, antes de criar` : "sem referências marcadas";
   if(!refs.length){ g.innerHTML = '<div class="empty">As referências aparecem aqui.</div>'; return; }
   refs.forEach((r, i) => {
     const card = document.createElement("div"); card.className = "ref" + (r.sel ? " sel" : "");
@@ -586,6 +587,31 @@ async function b64(r){
   const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.78));
   return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
 }
+/* folhas de 16 quadros (4x4) para a IA ler todas as referências em lotes */
+async function folhasB64(sel){
+  const out = [], cols = 4, cw = 256, chH = 192, pad = 6, lab = 18;
+  for(let f=0; f<sel.length; f+=POR_FOLHA){
+    const grupo = sel.slice(f, f+POR_FOLHA), rows = Math.ceil(grupo.length/cols), c = document.createElement("canvas");
+    c.width = cols*cw + (cols+1)*pad; c.height = rows*(chH+lab) + (rows+1)*pad;
+    const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height); x.font = "bold 14px sans-serif"; x.fillStyle = "#111";
+    for(let i=0; i<grupo.length; i++){
+      const bmp = await createImageBitmap(grupo[i].blob), cx = pad + (i%cols)*(cw+pad), cy = pad + Math.floor(i/cols)*(chH+lab+pad);
+      const k = Math.min(cw/bmp.width, chH/bmp.height), w = bmp.width*k, h = bmp.height*k;
+      x.drawImage(bmp, cx + (cw-w)/2, cy + (chH-h)/2, w, h); bmp.close && bmp.close();
+      x.fillText(`#${f+i+1}`, cx, cy + chH + 14);
+    }
+    const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.72));
+    out.push({ nome: `Folha com os quadros #${f+1} a #${f+grupo.length}`, data: await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); }) });
+  }
+  return out;
+}
+async function chamaIA(code, corpo){
+  const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify(corpo) });
+  let j = null; try{ j = await r.json(); }catch{}
+  if(r.status === 404) throw new Error("A IA do app só funciona no site publicado na Vercel.");
+  if(!r.ok) throw new Error(ERR[j && j.error] || `Não deu certo (erro ${r.status}).`);
+  return j;
+}
 function escolhe(){ const s = refs.filter(r => r.sel); if(s.length <= MAX_IA) return s; return Array.from({ length:MAX_IA }, (_, i) => s[Math.round(i*(s.length-1)/(MAX_IA-1))]); }
 (() => { const c = store.get("reverso-code", ""); if(c) $("#code").value = c; })();
 let ultimo = null;
@@ -593,16 +619,28 @@ $("#ia").onclick = async () => {
   const b = v(), code = $("#code").value.trim();
   if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   if(!code){ status2("Digite o código de envio.", "err"); $("#code").focus(); return; }
+  let todas = refs.filter(r => r.sel);
+  if(todas.length > MAX_TOTAL) todas = Array.from({ length:MAX_TOTAL }, (_, i) => todas[Math.round(i*(todas.length-1)/(MAX_TOTAL-1))]);
   const sel = escolhe(); if(!sel.length && !b.texto){ status2("Marque referências no passo 03 ou escreva algo no pedido.", "err"); return; }
   const btn = $("#ia"); btn.disabled = true; $("#out").replaceChildren();
   try{
-    status2(`Preparando ${sel.length} referências…`);
+    // 1) a IA lê TODAS as referências, em lotes de folhas, antes de criar
+    let notas = [];
+    if(todas.length > MAX_IA){
+      status2(`Montando as folhas com as ${todas.length} referências…`);
+      const folhas = await folhasB64(todas), lotes = [];
+      for(let i=0; i<folhas.length; i+=FOLHAS_LOTE) lotes.push(folhas.slice(i, i+FOLHAS_LOTE));
+      notas = new Array(lotes.length); let feitos = 0, prox = 0;
+      const trabalha = async () => { while(prox < lotes.length){ const i = prox++; const j = await chamaIA(code, { fase:"lote", lote:i+1, total:lotes.length, imagens:lotes[i] }); notas[i] = { lote:i+1, ...j.notas }; feitos++; status2(`Engenharia reversa: a IA leu ${feitos} de ${lotes.length} lotes (${todas.length} referências)…`); } };
+      status2(`Engenharia reversa: a IA está lendo ${lotes.length} lotes (${todas.length} referências)…`);
+      await Promise.all([trabalha(), trabalha(), trabalha()]);
+      store.set("reverso-code", code);
+    }
+    // 2) com a leitura de tudo, faz as 6 etapas e cria
+    status2(`Preparando a amostra final…`);
     const imagens = []; for(const r of sel) imagens.push({ data: await b64(r), nome: r.nome });
-    status2(b.modo === "ia" ? "A IA está estudando as referências e criando o universo e 3 personagens… pode levar até 2 minutos." : "A IA está fazendo a engenharia reversa e criando os 3 conceitos… pode levar até 2 minutos.");
-    const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ modo:b.modo, pedido:b.texto, analise: textoAnalise(await analisaRefs().catch(() => null)), estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens }) });
-    let j = null; try{ j = await r.json(); }catch{}
-    if(r.status === 404) throw new Error("A IA do app só funciona no site publicado na Vercel.");
-    if(!r.ok) throw new Error(ERR[j && j.error] || `Não deu certo (erro ${r.status}).`);
+    status2(b.modo === "ia" ? `A IA juntou a leitura de ${todas.length || "todas as"} referências e está criando o universo e 3 personagens… pode levar até 2 minutos.` : `A IA juntou a leitura de ${todas.length || "todas as"} referências e está fazendo as 6 etapas… pode levar até 2 minutos.`);
+    const j = await chamaIA(code, { modo:b.modo, pedido:b.texto, notas, totalRefs:todas.length, analise: textoAnalise(await analisaRefs().catch(() => null)), estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens });
     store.set("reverso-code", code);
     if(j.dados){ ultimo = { id: Date.now(), data: new Date().toISOString(), briefing: b, dados: j.dados }; mostra(ultimo, true); status2("Pronto. Confira: a IA pode errar detalhes, e a originalidade não pode ser garantida.", "ok"); }
     else if(j.bruto){ $("#out").replaceChildren(blocoTexto("Resposta da IA", String(j.bruto))); status2("A IA respondeu fora do formato; está abaixo como texto.", "ok"); }
