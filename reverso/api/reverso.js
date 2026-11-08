@@ -4,7 +4,6 @@ const MODEL = 'claude-sonnet-5-5';
 const MAX_IMAGES = 8;
 const MAX_BODY = 4.4 * 1024 * 1024; /* a Vercel recusa corpos acima de 4,5 MB */
 
-const USOS = ['jogo', 'animação', 'quadrinho', 'ilustração'];
 const ESTILOS = {
   ref: 'no mesmo nível de estilização das referências',
   anime: 'em estilo anime (cel-shading, contorno limpo)',
@@ -33,6 +32,8 @@ async function readJson(req) {
 const clip = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 const ESQUEMA = `{
+  "titulo": {"obra": "nome da obra ou universo (o do usuário, ou o que você criou)", "personagem": "nome curto do personagem principal"},
+  "universo_proposto": {"nome": "", "premissa": "", "mundo": "", "tom": ""},
   "perguntas": ["até 3 perguntas objetivas, só se faltar algo essencial; senão lista vazia"],
   "leitura": {
     "observacoes": ["o que se vê com clareza nas referências"],
@@ -72,15 +73,19 @@ const ESQUEMA = `{
   },
   "escolhido": {"conceito": "nome do conceito escolhido", "motivo": ""},
   "prompt_final": "prompt autossuficiente para a prancha de personagem",
+  "prompts_outros": [{"personagem": "", "prompt": ""}],
   "aviso_originalidade": "lembrete curto de que a originalidade não pode ser garantida e do que conferir"
 }`;
 
-function systemPrompt({ estilo, criatividade, idioma, temImagens }) {
+function systemPrompt({ estilo, criatividade, idioma, temImagens, modo }) {
   return [
     'Você é analista de desenvolvimento visual e designer de personagens sênior.',
     'OBJETIVO: analisar as referências para inferir os princípios visuais que sustentam o design delas e aplicar esses princípios na criação de um personagem NOVO para o briefing.',
     'Não trate a tarefa como reprodução pixel a pixel. Trabalhe do geral para o específico: conceito, silhueta, proporções, massas, valores, cores, materiais e detalhes.',
-    temImagens ? '' : 'ATENÇÃO: não vieram imagens. Faça a leitura a partir da descrição das referências escrita pelo usuário e diga isso em "leitura.limitacoes".',
+    modo === 'ia'
+      ? 'MODO "A IA CRIA TUDO": o usuário deixou você criar. Invente um universo original (preencha "universo_proposto": nome, premissa, mundo, tom) inspirado no que aprender com as referências e nas pistas do usuário, se houver. Na ETAPA 4, os 3 conceitos são 3 personagens DIFERENTES desse universo, com papéis diferentes (por exemplo protagonista, antagonista e aliado). Na ETAPA 6, "prompt_final" é o do personagem principal e "prompts_outros" traz os prompts dos outros 2. Não faça perguntas.'
+      : 'MODO "EU DESCREVO": o pedido do usuário está num texto livre. Tire dele o tema, o papel, a personalidade, o uso final, as características obrigatórias e o universo. Deixe "universo_proposto" com campos vazios e "prompts_outros" como lista vazia.',
+    temImagens ? '' : 'ATENÇÃO: não vieram imagens. Faça a leitura a partir do que o usuário escreveu e diga isso em "leitura.limitacoes".',
     'ETAPA 1, LEITURA: separe observações visíveis de hipóteses. Não invente detalhes ilegíveis nem afirme conhecer o processo original. Se a referência for uma montagem com miniaturas, diga quais análises exigem uma imagem maior.',
     'ETAPA 2, DECOMPOSIÇÃO: para cada um dos 9 tópicos do esquema, escreva observação → efeito visual → princípio reutilizável.',
     'ETAPA 3, PRINCÍPIOS: os 5 mais importantes, abstratos, sem depender do nome, dos acessórios exclusivos ou da identidade do personagem da referência.',
@@ -123,14 +128,14 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'grande' });
   }
 
-  const br = b.briefing || {};
+  const modo = b.modo === 'ia' ? 'ia' : 'descrevo';
+  const pedidoTxt = String(b.pedido ?? '').slice(0, 4000).trim();
   const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'ref';
   const criatividade = Object.hasOwn(CRIATIV, b.criatividade) ? b.criatividade : 'equilibrado';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
   const imgs = Array.isArray(b.imagens) ? b.imagens.slice(0, MAX_IMAGES) : [];
-  const descRef = clip(br.referencias, 1500);
-  if (!clip(br.tema, 10)) return res.status(400).json({ error: 'sem_tema' });
-  if (!imgs.length && !descRef) return res.status(400).json({ error: 'sem_referencia' });
+  if (modo === 'descrevo' && !pedidoTxt) return res.status(400).json({ error: 'sem_pedido' });
+  if (!imgs.length && !pedidoTxt) return res.status(400).json({ error: 'sem_referencia' });
 
   const content = [];
   let n = 0;
@@ -142,20 +147,12 @@ export default async function handler(req, res) {
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } });
   }
 
-  const uso = USOS.includes(br.uso) ? br.uso : '';
   const pedido = [
-    'BRIEFING DO PERSONAGEM NOVO',
-    br.obra ? `Obra / universo: ${clip(br.obra, 120)}` : '',
-    br.obraDesc ? `Sobre a obra: ${clip(br.obraDesc, 900)}` : '',
-    `Tema: ${clip(br.tema, 300)}`,
-    br.papel ? `Papel na narrativa: ${clip(br.papel, 300)}` : 'Papel na narrativa: não informado',
-    br.personalidade ? `Personalidade: ${clip(br.personalidade, 300)}` : 'Personalidade: não informada',
-    uso ? `Uso final: ${uso}` : 'Uso final: não informado',
-    br.obrigatorias ? `Características obrigatórias: ${clip(br.obrigatorias, 600)}` : '',
-    descRef ? `Descrição das referências pelo usuário: ${descRef}` : '',
+    modo === 'ia' ? 'MODO: a IA cria tudo (universo e 3 personagens).' : 'MODO: o usuário descreve o personagem.',
+    pedidoTxt ? (modo === 'ia' ? `Pistas do usuário:\n${pedidoTxt}` : `Pedido do usuário (texto livre):\n${pedidoTxt}`) : 'O usuário não escreveu nada: decida tudo a partir das referências.',
     n ? `Foram enviadas ${n} imagens de referência, na ordem.` : 'Nenhuma imagem foi enviada.',
     'Faça as 6 etapas e responda no JSON combinado.',
-  ].filter(Boolean).join('\n');
+  ].join('\n');
   content.push({ type: 'text', text: pedido });
 
   let r;
@@ -171,7 +168,7 @@ export default async function handler(req, res) {
         model: MODEL,
         max_tokens: 9000,
         temperature: CRIATIV[criatividade].t,
-        system: systemPrompt({ estilo, criatividade, idioma, temImagens: n > 0 }),
+        system: systemPrompt({ estilo, criatividade, idioma, temImagens: n > 0, modo }),
         messages: [{ role: 'user', content }],
       }),
     });

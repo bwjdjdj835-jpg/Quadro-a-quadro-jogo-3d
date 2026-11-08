@@ -72,6 +72,10 @@ input.codigo{-webkit-text-security:disc}
 .badge.good{color:var(--good)} .badge.mid{color:var(--mid)} .badge.bad{color:var(--bad)} .badge.img{color:var(--muted)}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
 .empty{color:var(--muted);padding:18px;border:1px dashed var(--line);text-align:center;grid-column:1/-1}
+.modos{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.modo{font:inherit;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;border-radius:0}
+.modo small{color:var(--muted);font-size:13.5px}
+.modo[aria-checked="true"]{border:2px solid var(--accent);background:var(--soft)}
 .box{border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px}
 .box.destaque{border:2px solid var(--accent)}
 details.box summary{cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
@@ -147,21 +151,15 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     </section>
 
     <section class="step" aria-labelledby="h2s">
-      <h2 id="h2s"><span class="n">02</span>Briefing do personagem novo</h2>
-      <div class="fields">
-        <div class="field"><label class="label" for="bObra">Obra / universo (2026)</label><input type="text" id="bObra" list="obras" placeholder="Ex.: Caixa de Pandora" autocomplete="off"><datalist id="obras"></datalist></div>
-        <div class="field"><label class="label" for="bUso">Uso final</label><select id="bUso"><option value="">Escolha</option><option value="jogo">Jogo</option><option value="animação">Animação</option><option value="quadrinho">Quadrinho</option><option value="ilustração">Ilustração</option></select></div>
+      <h2 id="h2s"><span class="n">02</span>Seu pedido</h2>
+      <div class="modos" role="radiogroup" aria-label="Quem cria">
+        <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e a IA cria o personagem.</small></button>
+        <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>A IA cria tudo</b><small>A IA inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
       </div>
-      <div class="field"><label class="label" for="bObraDesc">Sobre a obra (mundo, época, regras)</label><textarea id="bObraDesc" placeholder="Fica salvo junto com o nome da obra."></textarea></div>
-      <div class="field"><label class="label" for="bTema">Tema do personagem <b>obrigatório</b></label><input type="text" id="bTema" placeholder="Ex.: caçadora de relíquias alienígenas" autocomplete="off"></div>
+      <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
+        <textarea id="pedidoLivre" rows="9" placeholder=""></textarea></div>
       <div class="fields">
-        <div class="field"><label class="label" for="bPapel">Papel na narrativa</label><input type="text" id="bPapel" placeholder="Ex.: rival do protagonista" autocomplete="off"></div>
-        <div class="field"><label class="label" for="bPers">Personalidade</label><input type="text" id="bPers" placeholder="Ex.: fria, leal, irônica" autocomplete="off"></div>
-      </div>
-      <div class="field"><label class="label" for="bObrig">Características obrigatórias</label><textarea id="bObrig" placeholder="Ex.: braço mecânico, cabelo curto, cores frias"></textarea></div>
-      <div class="field"><label class="label" for="bRefDesc">Descreva as referências (opcional)</label><textarea id="bRefDesc" placeholder="Ajuda a IA quando a imagem é pequena ou quando você não tem imagens. Ex.: ficha de personagem com 3 vistas e 4 expressões."></textarea></div>
-      <div class="fields">
-        <div class="field"><label class="label" for="bEstilo">Estilo do novo</label><select id="bEstilo"><option value="ref">Igual às referências</option><option value="anime">Anime</option><option value="desenho">Desenho animado</option><option value="3d">Animação 3D</option><option value="realista">Realista</option></select></div>
+        <div class="field"><label class="label" for="bEstilo">Estilo</label><select id="bEstilo"><option value="ref">Igual às referências</option><option value="anime">Anime</option><option value="desenho">Desenho animado</option><option value="3d">Animação 3D</option><option value="realista">Realista</option></select></div>
         <div class="field"><label class="label" for="bCriativ">Criatividade da IA</label><select id="bCriativ"><option value="fiel">Seguir à risca</option><option value="equilibrado" selected>Equilibrado</option><option value="livre">Criatividade livre</option></select></div>
         <div class="field"><label class="label" for="bIdioma">Idioma do prompt final</label><select id="bIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
       </div>
@@ -186,15 +184,15 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
 
   <section class="step" aria-labelledby="h4s">
     <h2 id="h4s"><span class="n">04</span>Engenharia reversa e criação</h2>
-    <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos novos → revisão → prompt final da prancha.</p>
+    <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos (ou universo + 3 personagens, se a IA cria tudo) → revisão → prompt final.</p>
     <div class="box destaque">
       <h3>Gerar o pedido completo · grátis, sem código</h3>
-      <p class="note">Monta o roteiro das 6 etapas com o seu briefing. Cole no Gemini, ChatGPT ou Claude e anexe a folha das referências marcadas (ou as imagens soltas).</p>
+      <p class="note">Monta o roteiro das 6 etapas com o seu pedido. Cole no Gemini, ChatGPT ou Claude e anexe a folha das referências marcadas (ou as imagens soltas).</p>
       <div class="row"><button class="btn pri" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha das referências</button></div>
     </div>
     <details class="box" open>
       <summary>Analisar com a IA do app · ela faz as 6 etapas sozinha (precisa do código de envio)</summary>
-      <p class="note">Envia até 8 referências marcadas (reduzidas) e o briefing. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
+      <p class="note">Envia até 8 referências marcadas (reduzidas) e o seu pedido. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
       <div class="fields"><div class="field"><label class="label" for="code">Código de envio</label><input type="text" class="codigo" id="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Digite uma vez"></div></div>
       <div class="row"><button class="btn" type="button" id="ia">Analisar com a IA do app</button><span class="meta" id="iaInfo"></span></div>
     </details>
@@ -373,25 +371,45 @@ async function folha(){
   return new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
 }
 function baixar(nome, blob){ const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); }
-async function baixarFolha(){ const b = await folha(); if(b){ baixar(`referencias_${slug($("#bTema").value) || "personagem"}.jpg`, b); status2("Folha das referências baixada. Anexe ela junto com o pedido.", "ok"); } }
+async function baixarFolha(){ const b = await folha(); if(b){ baixar(`referencias_${new Date().toISOString().slice(0,10)}.jpg`, b); status2("Folha das referências baixada. Anexe ela junto com o pedido.", "ok"); } }
 $("#sheetBtn").onclick = baixarFolha; $("#sheetBtn2").onclick = baixarFolha;
 
 /* ---------- briefing salvo e obras ---------- */
-const CAMPOS = ["bObra","bObraDesc","bTema","bPapel","bPers","bUso","bObrig","bRefDesc","bEstilo","bCriativ","bIdioma"];
-(() => { const b = store.get("reverso-briefing", {}); CAMPOS.forEach(id => { if(b[id] != null) $("#"+id).value = b[id]; }); })();
-CAMPOS.forEach(id => $("#"+id).addEventListener(/^(SELECT)$/.test($("#"+id).tagName) ? "change" : "input", () => { const o = {}; CAMPOS.forEach(k => o[k] = $("#"+k).value); store.set("reverso-briefing", o); }));
-function obras(){ return store.get("reverso-obras", {}); }
-function obrasList(){ $("#obras").replaceChildren(...Object.keys(obras()).map(n => Object.assign(document.createElement("option"), { value:n }))); }
-function obraSave(){ const n = $("#bObra").value.trim(); if(!n) return; const o = obras(); o[n] = $("#bObraDesc").value.trim(); store.set("reverso-obras", o); obrasList(); }
-$("#bObra").addEventListener("change", () => { const d = obras()[$("#bObra").value.trim()]; if(d != null){ $("#bObraDesc").value = d; } });
-obrasList();
-const v = () => ({ obra:$("#bObra").value.trim(), obraDesc:$("#bObraDesc").value.trim(), tema:$("#bTema").value.trim(), papel:$("#bPapel").value.trim(), personalidade:$("#bPers").value.trim(), uso:$("#bUso").value, obrigatorias:$("#bObrig").value.trim(), referencias:$("#bRefDesc").value.trim(), estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value });
+/* ---------- pedido num lugar só ---------- */
+let modo = "descrevo";
+const PH = {
+  descrevo: "Fale tudo de uma vez. Exemplo:\nObra: Caixa de Pandora, ficção científica em Nova York, 2026.\nQuero uma caçadora de relíquias alienígenas, rival do protagonista, fria e irônica, uns 25 anos.\nÉ para animação. Tem que ter braço mecânico e cores frias.\nAs referências são fichas de personagem com 3 vistas.",
+  ia: "Opcional: dê pistas se quiser. Exemplo:\nalgo sombrio, para um jogo, com magia e tecnologia.\nOu deixe vazio para a IA decidir tudo a partir das referências."
+};
+function setModo(m){
+  modo = m === "ia" ? "ia" : "descrevo";
+  document.querySelectorAll(".modo").forEach(b => b.setAttribute("aria-checked", String(b.dataset.modo === modo)));
+  $("#pedidoLabel").textContent = modo === "ia" ? "Pistas para a IA (opcional)" : "Escreva tudo aqui: obra, universo, personagem, papel, personalidade, uso, o que é obrigatório";
+  $("#pedidoLivre").placeholder = PH[modo];
+  salvaPedido();
+}
+document.querySelectorAll(".modo").forEach(b => b.onclick = () => { setModo(b.dataset.modo); if(modo === "ia" && $("#bCriativ").value === "equilibrado"){ $("#bCriativ").value = "livre"; salvaPedido(); } });
+function salvaPedido(){ store.set("reverso-pedido", { modo, texto:$("#pedidoLivre").value, estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value }); }
+(() => {
+  let p = store.get("reverso-pedido", null);
+  if(!p){ // traz o briefing antigo, se houver
+    const b = store.get("reverso-briefing", null);
+    if(b){ const L = []; [["Obra", b.bObra], ["Sobre a obra", b.bObraDesc], ["Tema", b.bTema], ["Papel", b.bPapel], ["Personalidade", b.bPers], ["Uso", b.bUso], ["Obrigatório", b.bObrig], ["Referências", b.bRefDesc]].forEach(([k, x]) => { if(x) L.push(`${k}: ${x}`); }); p = { modo:"descrevo", texto:L.join("\n"), estilo:b.bEstilo, criatividade:b.bCriativ, idioma:b.bIdioma }; }
+  }
+  if(p){ $("#pedidoLivre").value = p.texto || ""; ["estilo","criatividade","idioma"].forEach((k, i) => { if(p[k]) $(["#bEstilo","#bCriativ","#bIdioma"][i]).value = p[k]; }); }
+  setModo(p && p.modo);
+})();
+["#pedidoLivre"].forEach(id => $(id).addEventListener("input", salvaPedido));
+["#bEstilo","#bCriativ","#bIdioma"].forEach(id => $(id).addEventListener("change", salvaPedido));
+const v = () => ({ modo, texto:$("#pedidoLivre").value.trim(), estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value });
+const nomeObra = c => (c.dados && c.dados.titulo && c.dados.titulo.obra) || (c.dados && c.dados.universo_proposto && c.dados.universo_proposto.nome) || c.briefing.obra || "Sem obra";
+const nomePers = c => (c.dados && c.dados.titulo && c.dados.titulo.personagem) || c.briefing.tema || (c.dados && c.dados.escolhido && c.dados.escolhido.conceito) || "Personagem";
 const ESTILO_TXT = { ref:"no mesmo nível de estilização das referências", anime:"em estilo anime", desenho:"em estilo desenho animado 2D", "3d":"em estilo de animação 3D estilizada", realista:"realista, como live-action (rosto original)" };
 const CRIATIV_TXT = { fiel:"Siga o briefing à risca e complete só o necessário.", equilibrado:"Siga o briefing e complete com bom gosto o que faltar.", livre:"Use criatividade livre: proponha soluções ousadas e surpreendentes, mantendo coerência com o briefing." };
 
 /* ---------- Opção A: pedido completo para colar ---------- */
 function pedido(){
-  const b = v(), n = refs.filter(r => r.sel).length, f = (x, d) => x || d;
+  const b = v(), n = refs.filter(r => r.sel).length, ia = b.modo === "ia";
   return `Atue como analista de desenvolvimento visual e designer de personagens.
 
 OBJETIVO
@@ -399,14 +417,10 @@ Analisar as referências anexadas para inferir os princípios visuais que susten
 Não trate a tarefa como reprodução pixel a pixel. Trabalhe do geral para o específico: conceito, silhueta, proporções, massas, valores, cores, materiais e detalhes.
 
 ENTRADAS
-- Imagens de referência: ${n ? `${n} anexadas (em uma folha numerada ou soltas)` : "vou anexar"}.${b.referencias ? `\n- Sobre as referências: ${b.referencias}` : ""}
-${b.obra ? `- Obra / universo: ${b.obra}${b.obraDesc ? `. ${b.obraDesc}` : ""}\n` : ""}- Tema do novo personagem: ${f(b.tema, "[preencher]")}.
-- Papel no universo ou narrativa: ${f(b.papel, "[preencher]")}.
-- Personalidade: ${f(b.personalidade, "[preencher]")}.
-- Uso final: ${f(b.uso, "[jogo, animação, quadrinho ou ilustração]")}.
-- Características obrigatórias: ${f(b.obrigatorias, "nenhuma")}.
+- Imagens de referência: ${n ? `${n} anexadas (em uma folha numerada ou soltas)` : "vou anexar"}.
 - Estilo do personagem novo: ${ESTILO_TXT[b.estilo]}.
 - Criatividade: ${CRIATIV_TXT[b.criatividade]}
+${ia ? `- VOCÊ CRIA TUDO: invente o universo (nome, premissa, mundo, tom) e 3 personagens diferentes desse universo, a partir do que aprender com as referências.${b.texto ? `\n- Minhas pistas: ${b.texto}` : ""}` : `- MEU PEDIDO (tema, papel, personalidade, uso final, características obrigatórias e o universo estão aqui):\n${b.texto || "[escrever o pedido]"}`}
 
 Se faltar uma informação essencial, faça até três perguntas objetivas.
 
@@ -434,7 +448,7 @@ Escreva-os de forma abstrata, sem depender do nome, dos acessórios exclusivos o
 Exemplo: "Pequenos acentos luminosos direcionam a atenção ao rosto" em vez de "copiar a máscara verde do personagem".
 
 ETAPA 4 — CRIAÇÃO
-Proponha três conceitos diferentes para o novo briefing. Cada conceito deve ter:
+${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e tom). Depois proponha três personagens diferentes desse universo, com papéis diferentes (por exemplo protagonista, antagonista e aliado). Cada um deve ter:" : "Proponha três conceitos diferentes para o novo briefing. Cada conceito deve ter:"}
 - uma ideia narrativa central;
 - silhueta própria;
 - proporções coerentes;
@@ -449,14 +463,13 @@ Compare as propostas pelos critérios: leitura em miniatura; clareza da personal
 Aponte fragilidades e proponha correções concretas. Não afirme que a originalidade pode ser garantida.
 
 ETAPA 6 — PROMPT FINAL DE IMAGEM
-Escolha a proposta mais adequada ao briefing e entregue um prompt autossuficiente ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
+${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Escolha a proposta mais adequada ao briefing e entregue um prompt autossuficiente"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
 Descreva: personagem, silhueta, proporções, rosto, cabelo, vestuário, materiais, acessórios, pose, expressão, cores, iluminação, acabamento, fundo e composição.
 Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas.
 Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.`;
 }
 $("#montar").onclick = () => {
-  if(!$("#bTema").value.trim()){ status2("Preencha o tema do personagem no passo 02.", "err"); $("#bTema").focus(); return; }
-  obraSave();
+  if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   const t = pedido(), out = $("#out"); out.replaceChildren(blocoTexto("Pedido completo para colar", t));
   const n = refs.filter(r => r.sel).length;
   status2(n ? `Pedido pronto. Copie, cole no Gemini, ChatGPT ou Claude e anexe a folha das ${n} referências (botão "Baixar folha das referências").` : "Pedido pronto. Você ainda não tem referências marcadas: anexe as imagens no chat da IA ou marque referências no passo 03.", n ? "ok" : "");
@@ -478,7 +491,7 @@ function blocoTexto(titulo, t){
 }
 
 /* ---------- Opção B: IA do app ---------- */
-const ERR = { codigo:"Código de envio errado.", sem_codigo:"Este projeto na Vercel ainda não tem o UPLOAD_CODE configurado.", sem_chave:"Falta a ANTHROPIC_API_KEY neste projeto na Vercel. Enquanto isso, use o pedido completo.", chave_invalida:"A chave da IA foi recusada. Confira a ANTHROPIC_API_KEY na Vercel.", sem_credito:"A conta da IA está sem crédito.", ocupado:"A IA está ocupada. Tente de novo em um minuto.", grande:"As imagens ficaram grandes demais. Marque menos referências.", imagem:"Uma das imagens não foi aceita.", sem_tema:"Preencha o tema do personagem.", sem_referencia:"Marque referências ou descreva as referências no briefing.", rede:"O servidor não conseguiu falar com a IA.", api:"A IA devolveu um erro. Tente de novo." };
+const ERR = { codigo:"Código de envio errado.", sem_codigo:"Este projeto na Vercel ainda não tem o UPLOAD_CODE configurado.", sem_chave:"Falta a ANTHROPIC_API_KEY neste projeto na Vercel. Enquanto isso, use o pedido completo.", chave_invalida:"A chave da IA foi recusada. Confira a ANTHROPIC_API_KEY na Vercel.", sem_credito:"A conta da IA está sem crédito.", ocupado:"A IA está ocupada. Tente de novo em um minuto.", grande:"As imagens ficaram grandes demais. Marque menos referências.", imagem:"Uma das imagens não foi aceita.", sem_pedido:"Escreva o seu pedido no passo 02.", sem_referencia:"Marque referências no passo 03 ou escreva algo no pedido.", rede:"O servidor não conseguiu falar com a IA.", api:"A IA devolveu um erro. Tente de novo." };
 async function b64(r){
   const bmp = await createImageBitmap(r.blob), sc = Math.min(1, 1024/Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
   c.width = Math.round(bmp.width*sc); c.height = Math.round(bmp.height*sc); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
@@ -490,15 +503,15 @@ function escolhe(){ const s = refs.filter(r => r.sel); if(s.length <= MAX_IA) re
 let ultimo = null;
 $("#ia").onclick = async () => {
   const b = v(), code = $("#code").value.trim();
-  if(!b.tema){ status2("Preencha o tema do personagem no passo 02.", "err"); $("#bTema").focus(); return; }
+  if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   if(!code){ status2("Digite o código de envio.", "err"); $("#code").focus(); return; }
-  const sel = escolhe(); if(!sel.length && !b.referencias){ status2("Marque referências no passo 03 ou descreva as referências no briefing.", "err"); return; }
-  const btn = $("#ia"); btn.disabled = true; $("#out").replaceChildren(); obraSave();
+  const sel = escolhe(); if(!sel.length && !b.texto){ status2("Marque referências no passo 03 ou escreva algo no pedido.", "err"); return; }
+  const btn = $("#ia"); btn.disabled = true; $("#out").replaceChildren();
   try{
     status2(`Preparando ${sel.length} referências…`);
     const imagens = []; for(const r of sel) imagens.push({ data: await b64(r), nome: r.nome });
-    status2("A IA está fazendo a engenharia reversa e criando os 3 conceitos… pode levar até 2 minutos.");
-    const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ briefing:b, estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens }) });
+    status2(b.modo === "ia" ? "A IA está estudando as referências e criando o universo e 3 personagens… pode levar até 2 minutos." : "A IA está fazendo a engenharia reversa e criando os 3 conceitos… pode levar até 2 minutos.");
+    const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ modo:b.modo, pedido:b.texto, estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens }) });
     let j = null; try{ j = await r.json(); }catch{}
     if(r.status === 404) throw new Error("A IA do app só funciona no site publicado na Vercel.");
     if(!r.ok) throw new Error(ERR[j && j.error] || `Não deu certo (erro ${r.status}).`);
@@ -517,7 +530,8 @@ function lista(a){ const ul = el("ul", { className:"lista" }); arr(a).forEach(i 
 function etapa(n, t, ...kids){ return el("div", { className:"etapa" }, el("h3", {}, el("span", { className:"n", textContent:n }), t), ...kids); }
 function texto(c){
   const d = c.dados, b = c.briefing, L = [];
-  L.push(`REVERSO · ${b.obra || "sem obra"} · ${b.tema}`, `Papel: ${b.papel || "-"} · Personalidade: ${b.personalidade || "-"} · Uso: ${b.uso || "-"}`, "");
+  L.push(`REVERSO · ${nomeObra(c)} · ${nomePers(c)}`, b.modo === "ia" ? "Modo: a IA criou tudo" : "Modo: eu descrevo", b.texto ? `Pedido: ${b.texto}` : "", "");
+  const u = d.universo_proposto; if(u && u.nome) L.push("UNIVERSO CRIADO PELA IA", `${u.nome}: ${S(u.premissa)}`, `Mundo: ${S(u.mundo)}`, `Tom: ${S(u.tom)}`, "");
   if(arr(d.perguntas).length){ L.push("PERGUNTAS", ...arr(d.perguntas).map(p => "- " + p), ""); }
   const l = d.leitura || {}; L.push("ETAPA 1 · LEITURA", "Observações:", ...arr(l.observacoes).map(x => "- " + x), "Hipóteses:", ...arr(l.hipoteses).map(x => "- " + x), "Limitações:", ...arr(l.limitacoes).map(x => "- " + x), "");
   L.push("ETAPA 2 · DECOMPOSIÇÃO"); arr(d.decomposicao).forEach(t => L.push(`${t.topico}: ${t.observacao} → ${t.efeito} → PRINCÍPIO: ${t.principio}`)); L.push("");
@@ -526,16 +540,19 @@ function texto(c){
   const r = d.revisao || {}; L.push("ETAPA 5 · REVISÃO"); arr(r.comparacao).forEach(k => L.push(`${k.conceito}: miniatura ${k.leitura_em_miniatura}; personalidade ${k.clareza_da_personalidade}; coerência ${k.coerencia_funcional}; hierarquia ${k.hierarquia_visual}; diferenciação ${k.diferenciacao_da_referencia}`));
   L.push("Fragilidades:", ...arr(r.fragilidades).map(x => "- " + x), "Correções:", ...arr(r.correcoes).map(x => "- " + x), "");
   L.push(`ETAPA 6 · PROMPT FINAL (conceito escolhido: ${S(d.escolhido && d.escolhido.conceito)})`, S(d.escolhido && d.escolhido.motivo), "", S(d.prompt_final), "");
+  arr(d.prompts_outros).forEach(p => L.push(`PROMPT · ${S(p.personagem)}`, S(p.prompt), ""));
   if(d.aviso_originalidade) L.push("AVISO: " + d.aviso_originalidade);
   return L.join("\n");
 }
 function mostra(c, novo){
   const d = c.dados, out = $("#out"); out.replaceChildren();
   const bc = el("button", { type:"button", className:"btn sm pri", textContent:"Copiar tudo" }); bc.onclick = () => copiar(texto(c));
-  const bd = el("button", { type:"button", className:"btn sm", textContent:"Baixar .txt" }); bd.onclick = () => baixar(`reverso_${slug(c.briefing.obra)}_${slug(c.briefing.tema)}.txt`, new Blob([texto(c)], { type:"text/plain;charset=utf-8" }));
+  const bd = el("button", { type:"button", className:"btn sm", textContent:"Baixar .txt" }); bd.onclick = () => baixar(`reverso_${slug(nomeObra(c))}_${slug(nomePers(c))}.txt`, new Blob([texto(c)], { type:"text/plain;charset=utf-8" }));
   const bs = el("button", { type:"button", className:"btn sm", textContent: novo ? "Salvar em Minhas criações" : "Já está salvo" }); bs.disabled = !novo;
   bs.onclick = () => { const l = store.get("reverso-criacoes", []); l.unshift(c); if(store.set("reverso-criacoes", l.slice(0, 60))){ bs.textContent = "Salvo"; bs.disabled = true; criacoes(); } else status2("Sem espaço no navegador. Baixe o .txt e apague criações antigas.", "err"); };
   out.append(el("div", { className:"row" }, bc, bd, bs));
+  const u = d.universo_proposto;
+  if(u && u.nome){ const dl = el("dl"); [["Premissa", u.premissa], ["Mundo", u.mundo], ["Tom", u.tom]].forEach(([a, x]) => { if(x) dl.append(el("dt", { textContent:a }), el("dd", { textContent:S(x) })); }); out.append(etapa("✦", `Universo criado pela IA: ${S(u.nome)}`, el("div", { className:"conceito" }, dl))); }
   if(arr(d.perguntas).length) out.append(etapa("?", "Perguntas da IA", el("p", { className:"note", textContent:"A IA respondeu assim mesmo, mas responder estas perguntas no briefing melhora o resultado:" }), lista(d.perguntas)));
   const l = d.leitura || {};
   out.append(etapa("01", "Leitura da referência", el("p", { className:"label", textContent:"Observações" }), lista(l.observacoes), el("p", { className:"label", textContent:"Hipóteses" }), lista(l.hipoteses), arr(l.limitacoes).length ? el("p", { className:"label", textContent:"Limitações" }) : null, lista(l.limitacoes)));
@@ -551,12 +568,13 @@ function mostra(c, novo){
     const ok = esc && S(k.nome).toLowerCase() === esc;
     cs.append(el("div", { className:"conceito" + (ok ? " escolhido" : "") }, el("h3", {}, S(k.nome), ok ? el("span", { className:"pill", textContent:"escolhido" }) : null), dl));
   });
-  out.append(etapa("04", "Três conceitos", cs));
+  out.append(etapa("04", d.universo_proposto && d.universo_proposto.nome ? "Três personagens do universo" : "Três conceitos", cs));
   const r = d.revisao || {}, tb = el("table"), hd = el("tr"); ["Conceito","Miniatura","Personalidade","Coerência","Hierarquia","Diferenciação"].forEach(h => hd.append(el("th", { textContent:h }))); tb.append(hd);
   arr(r.comparacao).forEach(k => { const tr = el("tr"); [k.conceito, k.leitura_em_miniatura, k.clareza_da_personalidade, k.coerencia_funcional, k.hierarquia_visual, k.diferenciacao_da_referencia].forEach(x => tr.append(el("td", { textContent:S(x) }))); tb.append(tr); });
   out.append(etapa("05", "Revisão", el("div", { className:"tabela" }, tb), el("p", { className:"label", textContent:"Fragilidades" }), lista(r.fragilidades), el("p", { className:"label", textContent:"Correções" }), lista(r.correcoes)));
   const pf = blocoTexto(`Prompt final · ${S(d.escolhido && d.escolhido.conceito)}`, S(d.prompt_final));
   out.append(etapa("06", "Prompt final da prancha", d.escolhido && d.escolhido.motivo ? el("p", { className:"note", textContent:S(d.escolhido.motivo) }) : null, pf));
+  arr(d.prompts_outros).forEach(p => out.append(blocoTexto(`Prompt · ${S(p.personagem)}`, S(p.prompt))));
   if(d.aviso_originalidade) out.append(el("p", { className:"note", textContent:"Aviso: " + S(d.aviso_originalidade) }));
   out.scrollIntoView({ behavior:"smooth", block:"start" });
 }
@@ -566,15 +584,15 @@ function criacoes(){
   const l = store.get("reverso-criacoes", []), box = $("#criacoes"); box.replaceChildren();
   $("#expTudo").disabled = !l.length;
   if(!l.length){ box.append(el("p", { className:"note", textContent:"Nenhuma criação salva ainda. Analise com a IA do app e clique em \"Salvar em Minhas criações\"." })); return; }
-  const grupos = {}; l.forEach(c => { const k = c.briefing.obra || "Sem obra"; (grupos[k] = grupos[k] || []).push(c); });
+  const grupos = {}; l.forEach(c => { const k = nomeObra(c); (grupos[k] = grupos[k] || []).push(c); });
   Object.entries(grupos).forEach(([obra, cs]) => {
     const g = el("div", { className:"obraGrupo" }, el("h3", { textContent:`${obra} (${cs.length})` }));
     cs.forEach(c => {
       const ab = el("button", { type:"button", className:"btn sm", textContent:"Abrir" }); ab.onclick = () => mostra(c, false);
-      const tx = el("button", { type:"button", className:"btn sm", textContent:".txt" }); tx.onclick = () => baixar(`reverso_${slug(obra)}_${slug(c.briefing.tema)}.txt`, new Blob([texto(c)], { type:"text/plain;charset=utf-8" }));
+      const tx = el("button", { type:"button", className:"btn sm", textContent:".txt" }); tx.onclick = () => baixar(`reverso_${slug(obra)}_${slug(nomePers(c))}.txt`, new Blob([texto(c)], { type:"text/plain;charset=utf-8" }));
       const ap = el("button", { type:"button", className:"btn sm warn", textContent:"Apagar" }); ap.onclick = e => confirma(e.currentTarget, "Confirmar", () => { store.set("reverso-criacoes", store.get("reverso-criacoes", []).filter(x => x.id !== c.id)); criacoes(); });
       const esc = c.dados.escolhido && c.dados.escolhido.conceito;
-      g.append(el("div", { className:"criacao" }, el("div", { className:"t" }, el("b", { textContent:c.briefing.tema }), el("div", { className:"meta", textContent:`${new Date(c.data).toLocaleDateString("pt-BR")}${esc ? " · " + esc : ""}` })), el("div", { className:"row" }, ab, tx, ap)));
+      g.append(el("div", { className:"criacao" }, el("div", { className:"t" }, el("b", { textContent:nomePers(c) }), el("div", { className:"meta", textContent:`${new Date(c.data).toLocaleDateString("pt-BR")}${esc ? " · " + esc : ""}` })), el("div", { className:"row" }, ab, tx, ap)));
     });
     box.append(g);
   });
