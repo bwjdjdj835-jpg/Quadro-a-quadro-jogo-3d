@@ -1,4 +1,5 @@
 {
   "rewrites": [{ "source": "/g/:id", "destination": "/api/g?id=:id" }],
-  "crons": [{ "path": "/api/cleanup", "schedule": "17 7 * * *" }]
+  "crons": [{ "path": "/api/cleanup", "schedule": "17 7 * * *" }],
+  "functions": { "api/ficha.js": { "maxDuration": 60 } }
 }
