@@ -180,6 +180,19 @@ function lerPedido(t){
   o.urbano = /cidade|urbano|rua|escola|são paulo|sao paulo|nova york|moderno|2026|atual/.test(s);
   o.sombrio = /sombri|terror|dark|morte|sangue|trág|trag|noir/.test(s);
   o.texto = (t || "").trim();
+  // frases do pedido, por assunto
+  const frases = o.texto.split(/(?<=[.!?;\n])\s*/).map(f => f.trim().replace(/[.;]+$/, "")).filter(Boolean);
+  const tem = (f, re) => re.test(f.toLowerCase());
+  o.ideia = (frases.find(f => tem(f, /\b(quero|queria|gostaria|preciso|personagem|ser[áa]|é um|é uma)\b/) && !tem(f, /^(obra|universo)\s*[:\-]/)) || frases.find(f => !tem(f, /^(obra|universo)\s*[:\-]/)) || "")
+    .replace(/^(eu\s+)?(quero|queria|gostaria de|preciso de)\s+(criar\s+|fazer\s+)?/i, "").trim();
+  const ehObra = f => tem(f, /^(obra|universo)\s*[:\-]/), ehObrig = f => tem(f, /tem que|precisa ter|obrigat|não pode faltar|nao pode faltar|deve ter/);
+  o.aparencia = frases.filter(f => !ehObrig(f) && !ehObra(f) && tem(f, /cabelo|olho|pele|roupa|jaqueta|casaco|capa|armadura|manto|vestido|calça|bota|tênis|tenis|uniforme|cicatriz|tatuagem|máscara|mascara|chifre|asa|cauda|bra[çc]o|prótese|protese|alto|alta|baixo|baixa|magr|forte|musculos|barba|óculos|oculos|luva|colar|brinco/)).join(". ");
+  o.obrigatorias = frases.filter(f => tem(f, /tem que|precisa ter|obrigat|não pode faltar|nao pode faltar|deve ter/)).map(f => f.replace(/^.*?(tem que ter|tem que|precisa ter|obrigatóri[oa]s?:?|não pode faltar|nao pode faltar|deve ter)\s*/i, "")).join("; ");
+  o.poder = (frases.find(f => !ehObra(f) && tem(f, /poder|habilidade|magia|controla|manipula|kore|hari|dna/)) || "");
+  o.personalidade = (o.texto.toLowerCase().match(/\b(fri[oa]|irônic[oa]|ironic[oa]|leal|alegre|séri[oa]|seri[oa]|tímid[oa]|timid[oa]|arrogante|corajos[oa]|calm[oa]|explosiv[oa]|sarcástic[oa]|sarcastic[oa]|gentil|cruel|misterios[oa]|engraçad[oa]|engracad[oa]|teimos[oa]|ambicios[oa]|protetor[a]?|curios[oa]|melancólic[oa]|impulsiv[oa]|frio e calculista|calculista|sábi[oa]|sabi[oa]|rebelde|orgulhos[oa]|bondos[oa])\b/g) || []).filter((x, i, a) => a.indexOf(x) === i).join(", ");
+  const fCor = frases.filter(f => !ehObra(f) && tem(f, /\bcor(es)?\b|\btons?\b|paleta|quentes?\b|fri[ao]s\b/));
+  o.cores = (fCor.length ? fCor : frases.filter(f => !ehObra(f) && tem(f, /vermelh|azul|verde|amarel|roxo|preto|branco|dourad|prata|rosa|laranja|marrom|cinza/))).join(". ");
+  o.cenario = frases.filter(f => tem(f, /cidade|mundo|universo|época|epoca|século|seculo|futuro|passado|reino|planeta|escola|academia|nova york|são paulo|sao paulo|20\d\d/) && !tem(f, /^(obra)\s*[:\-]/)).join(". ");
   return o;
 }
 
@@ -193,7 +206,7 @@ const BANCO = {
     { pt:"silhueta em X: ombros e barra da roupa abertos, cintura marcada", en:"X-shaped silhouette: flared shoulders and hem, cinched waist", forma:"mista" },
     { pt:"bloco retangular compacto com cabeça pequena", en:"compact rectangular block with a small head", forma:"retangular" },
     { pt:"assimétrica: um lado pesado (armadura ou manto), o outro leve", en:"asymmetric: one heavy side (armor or cloak), the other light", forma:"mista" },
-    { pt:"curvas em S, postura fluida e cabelo longo como linha de ação", en:"S-curve silhouette, fluid posture, long hair as the line of action", forma:"curva" }
+    { pt:"curvas em S, postura fluida e uma peça longa (faixa, cauda ou casaco) como linha de ação", en:"S-curve silhouette, fluid posture, one long element (sash, tail or coat) as the line of action", forma:"curva" }
   ],
   materiais: {
     scifi: [{ pt:"tecido técnico fosco, placas leves de polímero, cabos expostos", en:"matte technical fabric, light polymer plates, exposed cables" }, { pt:"traje justo com painéis rígidos e costuras luminosas", en:"fitted suit with rigid panels and glowing seams" }, { pt:"jaqueta acolchoada, metal escovado e borracha", en:"padded jacket, brushed metal and rubber" }],
@@ -284,18 +297,20 @@ function gerar(p, ped, opt){
   const conceitos = [0, 1, 2].map(i => {
     const silh = sorteia(BANCO.silhuetas.filter((_, k) => i === 0 && fiel ? k === silhRef || k > 1 : true), s => s.pt);
     const mat = sorteia(BANCO.materiais[mundo], m => m.pt), elem = sorteia(BANCO.elementos, e => e.pt), ideia = sorteia(BANCO.ideias, e => e.pt);
+    const usaPedido = !ia && !!ped.ideia, variacao = ["fiel ao seu pedido", "variação do seu pedido", livre ? "versão ousada do seu pedido" : "versão alternativa do seu pedido"][i];
+    const twist = i === 2 && (livre || !ped.ideia) ? ideia : null;
     const desloc = fiel ? [0, 20, -20][i] : livre ? [0, 140, 200][i] : [0, 60, -60][i];
     const cab = p.cabecas ? Math.max(2.5, Math.min(9, p.cabecas + (fiel ? 0 : livre ? [0, 1.5, -1.2][i] : [0, .8, -.6][i]))) : [6.5, 7.5, 5.5][i];
     const papel = ia ? papeisIA[i] : [ped.papel || "", ped.papelEn || ""];
     return { nome: ia ? `${nomes[i]} (${papel[0]})` : nomes[i] + (ped.papel ? ` · ${ped.papel}` : ""),
-      _en: { silh: silh.en, mat: mat.en, elem: elem.en, ideia: ideia.en, cores: corTxt(desloc, "en"), cab, papel: papel[1] },
-      ideia_narrativa: (ia ? `${papel[0][0].toUpperCase() + papel[0].slice(1)}: ` : "") + ideia.pt + (ped.texto && !ia ? ` (a partir do seu pedido: "${ped.texto.slice(0, 140)}${ped.texto.length > 140 ? "…" : ""}")` : "") + ".",
+      _en: { silh: silh.en, mat: ped.aparencia && !ia ? null : mat.en, elem: ped.obrigatorias && !ia ? null : elem.en, ideia: usaPedido ? null : ideia.en, twist: twist && twist.en, cores: ped.cores && !ia ? null : corTxt(desloc, "en"), cab, papel: papel[1] },
+      ideia_narrativa: ia ? `${papel[0][0].toUpperCase() + papel[0].slice(1)}: ${ideia.pt}.` : usaPedido ? `${variacao[0].toUpperCase() + variacao.slice(1)}: ${ped.ideia}${ped.personalidade ? `; personalidade ${ped.personalidade}` : ""}${ped.poder && !ped.ideia.includes(ped.poder) ? `; ${ped.poder}` : ""}${twist ? `. Toque extra: ${twist.pt}` : ""}.` : `${ideia.pt}.`,
       silhueta: silh.pt + ".",
       proporcoes: `Cerca de ${cab.toFixed(1)} cabeças${i === 0 ? ", perto da referência" : ", diferente da referência para criar contraste"}${ped.idade ? `; idade de ${ped.idade} anos` : ""}.`,
       linguagem_de_formas: silh.forma === "angular" ? "Triângulos e diagonais dominantes, com uma única curva no rosto para humanizar." : silh.forma === "curva" ? "Círculos e curvas dominantes, com um elemento reto e duro como contraste." : silh.forma === "retangular" ? "Retângulos e blocos, com pequenas pontas só nos acessórios." : "Mistura de curvas no corpo e ângulos no figurino.",
-      figurino_e_materiais: `${mat.pt}; cada peça com uma função na história.`,
-      organizacao_cromatica: `Base derivada da paleta medida, girada ${desloc}° no círculo de cores: ${corTxt(desloc, "pt")}. Valores agrupados como na referência (${T.chave}).`,
-      elemento_marcante: elem.pt + "." };
+      figurino_e_materiais: !ia && ped.aparencia ? `Como você pediu: ${ped.aparencia}. Construção no estilo da referência: ${mat.pt}${i === 0 ? "" : ", em outra combinação de camadas"}.` : `${mat.pt}; cada peça com uma função na história.`,
+      organizacao_cromatica: !ia && ped.cores ? `Como você pediu: ${ped.cores}. Valores e saturação no padrão da referência (${T.chave}, ${T.sat}).` : `Base derivada da paleta medida, girada ${desloc}° no círculo de cores: ${corTxt(desloc, "pt")}. Valores agrupados como na referência (${T.chave}).`,
+      elemento_marcante: !ia && ped.obrigatorias ? `${ped.obrigatorias} (obrigatório no seu pedido), tratado como o ponto de foco do design${i === 2 ? ", com uma função na história" : ""}.` : elem.pt + "." };
   });
   const universo = ia ? (() => { const pr = pick(r, BANCO.universos.premissa); return { nome: pick(r, BANCO.universos.prefixo) + pick(r, BANCO.universos.sufixo), premissa: pr.pt, mundo: { scifi:"tecnologia avançada sobre ruínas antigas", fantasia:"reinos antigos onde a magia tem preço", urbano:"cidade contemporânea com uma camada oculta de poder", neutro:"mundo próprio, entre o cotidiano e o fantástico" }[mundo] + (ped.texto ? `; com as suas pistas: ${ped.texto.slice(0, 160)}` : ""), tom: tons.pt, _en: pr.en }; })() : { nome:"", premissa:"", mundo:"", tom:"" };
 
@@ -329,12 +344,16 @@ function gerar(p, ped, opt){
     const estiloEsc = { anime:[" Rendered in Japanese anime style."," Em estilo anime japonês."], desenho:[" Rendered as a 2D cartoon."," Em estilo desenho animado 2D."], "3d":[" Rendered as a stylized 3D animated film character."," Em estilo de animação 3D estilizada."], realista:[" Rendered photorealistic, like live-action, with an original face."," Realista, como live-action, com rosto original."] }[opt.estilo];
     if(en) return `${estiloEN}${estiloEsc ? estiloEsc[0] : ""}
 
-CHARACTER: ${gen}${idade}${e.papel ? `, the ${e.papel} of the story` : ""}${universo._en ? ` in a world where ${universo._en.replace(/^a world where /, "")}` : ""}. Concept: ${e.ideia}. Silhouette: ${e.silh}. Proportions: about ${e.cab.toFixed(1)} heads tall. Outfit and materials: ${e.mat}. Signature element with narrative purpose: ${e.elem}. Color scheme: ${e.cores}, with one small saturated accent. ${ped.texto && !ia ? `Additional notes from the author (Portuguese): ${ped.texto}. ` : ""}Pose: confident neutral stance with a clear line of action. Expression: matches the personality. Lighting: soft even studio light that keeps the values readable.
+${!ia && ped.texto ? `CHARACTER BRIEF FROM THE AUTHOR (in Portuguese; follow every detail, it has priority over everything below): "${ped.texto}"
+
+` : ""}CHARACTER: ${gen}${idade}${e.papel ? `, the ${e.papel} of the story` : ""}${universo._en ? ` in a world where ${universo._en.replace(/^a world where /, "")}` : ""}.${e.ideia ? ` Concept: ${e.ideia}.` : " Concept: exactly as described in the author's brief."}${e.twist ? ` Extra twist: ${e.twist}.` : ""} Silhouette: ${e.silh}. Proportions: about ${e.cab.toFixed(1)} heads tall. Outfit and materials: ${e.mat || "as described in the author's brief, built in the visual style above"}. Signature element with narrative purpose: ${e.elem || "the mandatory feature from the author's brief, as the focal point"}. Color scheme: ${e.cores || "as described in the author's brief"}, with one small saturated accent. Pose: confident neutral stance with a clear line of action. Expression: matches the personality. Lighting: soft even studio light that keeps the values readable.
 
 ${prancha}`;
     return `${estiloPT}${estiloEsc ? estiloEsc[1] : ""}
 
-PERSONAGEM: ${gen}${idade}${c.nome.includes("(") ? `, ${c.nome.split("(")[1].replace(")", "")} da história` : ped.papel ? `, ${ped.papel} da história` : ""}. Ideia: ${c.ideia_narrativa} Silhueta: ${c.silhueta} Proporções: ${c.proporcoes} Figurino e materiais: ${c.figurino_e_materiais} Elemento marcante: ${c.elemento_marcante} Cores: ${c.organizacao_cromatica} Pose neutra e confiante com linha de ação clara. Luz de estúdio suave e uniforme.
+${!ia && ped.texto ? `PEDIDO DO AUTOR (siga todos os detalhes; tem prioridade sobre o resto): "${ped.texto}"
+
+` : ""}PERSONAGEM: ${gen}${idade}${c.nome.includes("(") ? `, ${c.nome.split("(")[1].replace(")", "")} da história` : ped.papel ? `, ${ped.papel} da história` : ""}. Ideia: ${c.ideia_narrativa} Silhueta: ${c.silhueta} Proporções: ${c.proporcoes} Figurino e materiais: ${c.figurino_e_materiais} Elemento marcante: ${c.elemento_marcante} Cores: ${c.organizacao_cromatica} Pose neutra e confiante com linha de ação clara. Luz de estúdio suave e uniforme.
 
 ${prancha}`;
   };
