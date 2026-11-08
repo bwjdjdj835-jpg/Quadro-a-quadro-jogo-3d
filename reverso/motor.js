@@ -346,27 +346,27 @@ function gerar(p, ped, opt){
   const usados = new Set(), sorteia = (lista, chave) => { let x, t = 0; do { x = pick(r, lista); t++; } while(usados.has(chave(x)) && t < 20); usados.add(chave(x)); return x; };
   const silhRef = p.massa[0] > p.massa[2] ? 0 : 1;
   const nomes = ia ? ["", "", ""].map(() => pick(r, BANCO.universos.prefixo) + pick(r, BANCO.universos.sufixo)) : ["A", "B", "C"].map(x => `Conceito ${x}`);
-  const unico = !ia; // "Eu descrevo": um personagem só, o do pedido
+  const unico = true; // sempre UM personagem por vez (o do pedido; ou o principal do universo criado)
   const formaRef = p.agudos > .3 ? "angular" : p.curvos > .5 ? "curva" : p.retos > .55 ? "retangular" : "mista";
   const nomeUnico = (() => { const t = (ped.ideia || "").replace(/^(uma?|o|a)\s+/i, "").split(/[,;:]| que | de \d/)[0].trim(); return t ? t[0].toUpperCase() + t.slice(1, 60) : "Seu personagem"; })();
   const conceitos = (unico ? [0] : [0, 1, 2]).map(i => {
     const candidatas = unico && !livre ? BANCO.silhuetas.filter(s => s.forma === formaRef) : BANCO.silhuetas;
     const silh = sorteia((candidatas.length ? candidatas : BANCO.silhuetas).filter((_, k) => !unico && i === 0 && fiel ? k === silhRef || k > 1 : true), s => s.pt);
     const mat = sorteia(BANCO.materiais[mundo], m => m.pt), elem = sorteia(BANCO.elementos, e => e.pt), ideia = sorteia(BANCO.ideias, e => e.pt);
-    const usaPedido = !ia && !!ped.ideia, variacao = unico ? "seu personagem" : ["fiel ao seu pedido", "variação do seu pedido", livre ? "versão ousada do seu pedido" : "versão alternativa do seu pedido"][i];
+    const usaPedido = !!ped.ideia, variacao = unico ? "seu personagem" : ["fiel ao seu pedido", "variação do seu pedido", livre ? "versão ousada do seu pedido" : "versão alternativa do seu pedido"][i];
     const twist = (unico ? livre : i === 2 && (livre || !ped.ideia)) ? ideia : null;
     const desloc = fiel ? [0, 20, -20][i] : livre ? [0, 140, 200][i] : [0, 60, -60][i];
     const cab = p.cabecas ? Math.max(2.5, Math.min(9, p.cabecas + (fiel ? 0 : livre ? [0, 1.5, -1.2][i] : [0, .8, -.6][i]))) : [6.5, 7.5, 5.5][i];
-    const papel = ia ? papeisIA[i] : [ped.papel || "", ped.papelEn || ""];
-    return { nome: ia ? `${nomes[i]} (${papel[0]})` : unico ? nomeUnico + (ped.papel ? ` · ${ped.papel}` : "") : nomes[i] + (ped.papel ? ` · ${ped.papel}` : ""),
-      _en: { silh: silh.en, mat: ped.aparencia && !ia ? null : mat.en, elem: ped.obrigatorias && !ia ? null : elem.en, ideia: usaPedido ? null : ideia.en, twist: twist && twist.en, cores: ped.cores && !ia ? null : corTxt(desloc, "en"), cab, papel: papel[1] },
-      ideia_narrativa: ia ? `${papel[0][0].toUpperCase() + papel[0].slice(1)}: ${ideia.pt}.` : usaPedido ? `${variacao[0].toUpperCase() + variacao.slice(1)}: ${ped.ideia}${ped.personalidade ? `; personalidade ${ped.personalidade}` : ""}${ped.poder && !ped.ideia.includes(ped.poder) ? `; ${ped.poder}` : ""}${twist ? `. Toque extra: ${twist.pt}` : ""}.` : `${ideia.pt}.`,
+    const papel = ped.papel ? [ped.papel, ped.papelEn] : ia ? papeisIA[i] : ["", ""];
+    return { nome: ia && !ped.ideia ? `${nomes[i]} (${papel[0]})` : unico ? nomeUnico + (ped.papel ? ` · ${ped.papel}` : "") : nomes[i] + (ped.papel ? ` · ${ped.papel}` : ""),
+      _en: { silh: silh.en, mat: ped.aparencia ? null : mat.en, elem: ped.obrigatorias ? null : elem.en, ideia: usaPedido ? null : ideia.en, twist: twist && twist.en, cores: ped.cores ? null : corTxt(desloc, "en"), cab, papel: papel[1] },
+      ideia_narrativa: ia && !usaPedido ? `${papel[0][0].toUpperCase() + papel[0].slice(1)}: ${ideia.pt}.` : usaPedido ? `${variacao[0].toUpperCase() + variacao.slice(1)}: ${ped.ideia}${ped.personalidade ? `; personalidade ${ped.personalidade}` : ""}${ped.poder && !ped.ideia.includes(ped.poder) ? `; ${ped.poder}` : ""}${twist ? `. Toque extra: ${twist.pt}` : ""}.` : `${ideia.pt}.`,
       silhueta: silh.pt + ".",
       proporcoes: `Cerca de ${cab.toFixed(1)} cabeças${i === 0 ? ", como na referência" : ", diferente da referência para criar contraste"}${ped.idade ? `; idade de ${ped.idade} anos` : ""}.`,
       linguagem_de_formas: silh.forma === "angular" ? "Triângulos e diagonais dominantes, com uma única curva no rosto para humanizar." : silh.forma === "curva" ? "Círculos e curvas dominantes, com um elemento reto e duro como contraste." : silh.forma === "retangular" ? "Retângulos e blocos, com pequenas pontas só nos acessórios." : "Mistura de curvas no corpo e ângulos no figurino.",
-      figurino_e_materiais: !ia && ped.aparencia ? `Como você pediu: ${ped.aparencia}. Construção no estilo da referência: ${mat.pt}${i === 0 ? "" : ", em outra combinação de camadas"}.` : `${mat.pt}; cada peça com uma função na história.`,
-      organizacao_cromatica: !ia && ped.cores ? `Como você pediu: ${ped.cores}. Valores e saturação no padrão da referência (${T.chave}, ${T.sat}).` : `Base derivada da paleta medida, girada ${desloc}° no círculo de cores: ${corTxt(desloc, "pt")}. Valores agrupados como na referência (${T.chave}).`,
-      elemento_marcante: !ia && ped.obrigatorias ? `${ped.obrigatorias} (obrigatório no seu pedido), tratado como o ponto de foco do design${i === 2 ? ", com uma função na história" : ""}.` : elem.pt + "." };
+      figurino_e_materiais: ped.aparencia ? `Como você pediu: ${ped.aparencia}. Construção no estilo da referência: ${mat.pt}${i === 0 ? "" : ", em outra combinação de camadas"}.` : `${mat.pt}; cada peça com uma função na história.`,
+      organizacao_cromatica: ped.cores ? `Como você pediu: ${ped.cores}. Valores e saturação no padrão da referência (${T.chave}, ${T.sat}).` : `Base derivada da paleta medida, girada ${desloc}° no círculo de cores: ${corTxt(desloc, "pt")}. Valores agrupados como na referência (${T.chave}).`,
+      elemento_marcante: ped.obrigatorias ? `${ped.obrigatorias} (obrigatório no seu pedido), tratado como o ponto de foco do design${i === 2 ? ", com uma função na história" : ""}.` : elem.pt + "." };
   });
   const universo = ia ? (() => { const pr = pick(r, BANCO.universos.premissa); return { nome: pick(r, BANCO.universos.prefixo) + pick(r, BANCO.universos.sufixo), premissa: pr.pt, mundo: { scifi:"tecnologia avançada sobre ruínas antigas", fantasia:"reinos antigos onde a magia tem preço", urbano:"cidade contemporânea com uma camada oculta de poder", neutro:"mundo próprio, entre o cotidiano e o fantástico" }[mundo] + (ped.texto ? `; com as suas pistas: ${ped.texto.slice(0, 160)}` : ""), tom: tons.pt, _en: pr.en }; })() : { nome:"", premissa:"", mundo:"", tom:"" };
 
@@ -445,20 +445,20 @@ function gerar(p, ped, opt){
     const estiloEsc = { anime:[" Rendered in Japanese anime style."," Em estilo anime japonês."], desenho:[" Rendered as a 2D cartoon."," Em estilo desenho animado 2D."], "3d":[" Rendered as a stylized 3D animated film character."," Em estilo de animação 3D estilizada."], realista:[" Rendered photorealistic, like live-action, with an original face."," Realista, como live-action, com rosto original."] }[opt.estilo];
     if(en) return `${estiloEN}${estiloEsc ? estiloEsc[0] : ""}
 
-${!ia && ped.texto ? `CHARACTER BRIEF FROM THE AUTHOR (in Portuguese; follow every detail, it has priority over everything below): "${ped.texto}"
+${ped.texto ? `CHARACTER BRIEF FROM THE AUTHOR (in Portuguese; follow every detail, it has priority over everything below): "${ped.texto}"
 
 ` : ""}CHARACTER: ${gen}${idade}${e.papel ? `, the ${e.papel} of the story` : ""}${universo._en ? ` in a world where ${universo._en.replace(/^a world where /, "")}` : ""}.${e.ideia ? ` Concept: ${e.ideia}.` : " Concept: exactly as described in the author's brief."}${e.twist ? ` Extra twist: ${e.twist}.` : ""} Silhouette: ${e.silh}. Proportions: about ${e.cab.toFixed(1)} heads tall. Outfit and materials: ${e.mat || "as described in the author's brief, built in the visual style above"}. Signature element with narrative purpose: ${e.elem || "the mandatory feature from the author's brief, as the focal point"}. Color scheme: ${e.cores || "as described in the author's brief"}, with one small saturated accent. Pose: confident neutral stance with a clear line of action. Expression: matches the personality. Lighting: soft even studio light that keeps the values readable.
 
 ${prancha}`;
     return `${estiloPT}${estiloEsc ? estiloEsc[1] : ""}
 
-${!ia && ped.texto ? `PEDIDO DO AUTOR (siga todos os detalhes; tem prioridade sobre o resto): "${ped.texto}"
+${ped.texto ? `PEDIDO DO AUTOR (siga todos os detalhes; tem prioridade sobre o resto): "${ped.texto}"
 
 ` : ""}PERSONAGEM: ${gen}${idade}${c.nome.includes("(") ? `, ${c.nome.split("(")[1].replace(")", "")} da história` : ped.papel ? `, ${ped.papel} da história` : ""}. Ideia: ${c.ideia_narrativa} Silhueta: ${c.silhueta} Proporções: ${c.proporcoes} Figurino e materiais: ${c.figurino_e_materiais} Elemento marcante: ${c.elemento_marcante} Cores: ${c.organizacao_cromatica} Pose neutra e confiante com linha de ação clara. Luz de estúdio suave e uniforme.
 
 ${prancha}`;
   };
-  const outros = ia ? conceitos.filter((_, i) => i !== escolhidoIdx).map(c => ({ personagem: c.nome, prompt: promptDe(c) })) : [];
+  const outros = []; // um prompt só: para outro personagem, faça outro pedido
   const perguntas = [];
   if(!ia){ if(!ped.papel && !/papel\s*:/i.test(ped.texto)) perguntas.push("Qual é o papel do personagem na história (protagonista, vilão, mentor...)?"); if(!ped.uso && !/\buso\s*:/i.test(ped.texto)) perguntas.push("O uso final é jogo, animação, quadrinho ou ilustração?"); if(!ped.idade && !ped.genero && !/idade e tipo f[ií]sico\s*:/i.test(ped.texto)) perguntas.push("Qual a idade e o tipo físico do personagem?"); }
   return { formato: opt.formato === "imagem" ? "imagem" : opt.formato === "prancha" || !(modelo && modelo.el.length >= 2) ? "prancha" : "modelo",

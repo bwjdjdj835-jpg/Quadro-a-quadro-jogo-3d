@@ -169,7 +169,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     <h2 id="h2s"><span class="n">03</span>Seu pedido (antes da engenharia reversa)</h2>
     <div class="modos" role="radiogroup" aria-label="Quem cria">
       <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e o app cria UM personagem: exatamente o que você pediu.</small></button>
-      <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
+      <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e o personagem principal a partir das referências. Escrever é opcional.</small></button>
     </div>
     <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
       <textarea id="pedidoLivre" rows="9" placeholder=""></textarea></div>
@@ -184,7 +184,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
 
   <section class="step" aria-labelledby="h4s">
     <h2 id="h4s"><span class="n">04</span>Engenharia reversa e criação</h2>
-    <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos (ou universo + 3 personagens, se a IA cria tudo) → revisão → prompt final.</p>
+    <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → o seu personagem (ou universo + personagem principal, se o app cria tudo) → revisão → prompt final.</p>
     <div class="box destaque">
       <h3>Analisar com o motor do app · grátis, sem API, sem crédito</h3>
       <p class="note">O próprio app faz a engenharia reversa aqui no seu aparelho, em JavaScript puro: mede TODAS as referências marcadas (silhueta, proporção de cabeças, distribuição de massa, formas, simetria, claros e escuros, paleta, ponto focal, contorno e sombreamento) e gera as 6 etapas, os 3 conceitos e o prompt final com o estilo em palavras. Ele também aprende o estilo de cada obra: escreva "Obra: nome" no pedido e, a cada vídeo analisado, o perfil dessa obra fica mais preciso.</p>
@@ -400,7 +400,7 @@ function salvaPedido(){ store.set("reverso-pedido", { modo, formato:$("#bFormato
     if(b){ const L = []; [["Obra", b.bObra], ["Sobre a obra", b.bObraDesc], ["Tema", b.bTema], ["Papel", b.bPapel], ["Personalidade", b.bPers], ["Uso", b.bUso], ["Obrigatório", b.bObrig], ["Referências", b.bRefDesc]].forEach(([k, x]) => { if(x) L.push(`${k}: ${x}`); }); p = { modo:"descrevo", texto:L.join("\n"), estilo:b.bEstilo, criatividade:b.bCriativ, idioma:b.bIdioma }; }
   }
   if(p){ if(p.formato) $("#bFormato").value = p.formato; $("#pedidoLivre").value = p.texto || ""; ["estilo","criatividade","idioma"].forEach((k, i) => { if(p[k]) $(["#bEstilo","#bCriativ","#bIdioma"][i]).value = p[k]; }); }
-  setModo(p && p.modo);
+  setModo("descrevo"); // sempre começa em "Eu descrevo"
 })();
 ["#pedidoLivre"].forEach(id => $(id).addEventListener("input", salvaPedido));
 ["#bEstilo","#bCriativ","#bIdioma","#bFormato"].forEach(id => $(id).addEventListener("change", salvaPedido));
@@ -499,7 +499,7 @@ ENTRADAS
 - Referências: ${an ? `NÃO estão anexadas. O app já analisou ${analiseAtual.usadas} imagens e a análise técnica está abaixo. Use essa análise e o meu pedido como base da engenharia reversa.` : "não há imagens nem análise; trabalhe a partir do meu pedido e diga o que precisou supor."}
 - Estilo do personagem novo: ${ESTILO_TXT[b.estilo]}.
 - Criatividade: ${CRIATIV_TXT[b.criatividade]}
-${ia ? `- VOCÊ CRIA TUDO: invente o universo (nome, premissa, mundo, tom) e 3 personagens diferentes desse universo, a partir do que aprender com as referências.${b.texto ? `\n- Minhas pistas: ${b.texto}` : ""}` : `- MEU PEDIDO (tema, papel, personalidade, uso final, características obrigatórias e o universo estão aqui):\n${b.texto || "[escrever o pedido]"}`}
+${ia ? `- VOCÊ CRIA TUDO: invente o universo (nome, premissa, mundo, tom) e UM personagem principal desse universo, a partir do que aprender com as referências.${b.texto ? `\n- Minhas pistas: ${b.texto}` : ""}` : `- MEU PEDIDO (tema, papel, personalidade, uso final, características obrigatórias e o universo estão aqui):\n${b.texto || "[escrever o pedido]"}`}
 
 ${an ? an + "\n\n" : ""}Se faltar uma informação essencial, faça até três perguntas objetivas, mas entregue o trabalho completo assim mesmo, dizendo o que supôs.
 
@@ -527,7 +527,7 @@ Escreva-os de forma abstrata, sem depender do nome, dos acessórios exclusivos o
 Exemplo: "Pequenos acentos luminosos direcionam a atenção ao rosto" em vez de "copiar a máscara verde do personagem".
 
 ETAPA 4 — CRIAÇÃO
-${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e tom). Depois proponha três personagens diferentes desse universo, com papéis diferentes (por exemplo protagonista, antagonista e aliado). Cada um deve ter:" : "Crie UM personagem só: exatamente o que eu descrevi no meu pedido, sem propor alternativas. Ele deve ter:"}
+${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e tom). Depois crie UM personagem principal desse universo. Ele deve ter:" : "Crie UM personagem só: exatamente o que eu descrevi no meu pedido, sem propor alternativas. Ele deve ter:"}
 - uma ideia narrativa central;
 - silhueta própria;
 - proporções coerentes;
@@ -538,11 +538,11 @@ ${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e t
 Não se limite a mudar cores ou roupas. Evite repetir a combinação de traços distintivos da referência. Use os princípios estudados, mas desenvolva novas soluções.
 
 ETAPA 5 — REVISÃO
-${ia ? "Compare as propostas pelos critérios:" : "Avalie o personagem pelos critérios:"} leitura em miniatura; clareza da personalidade; coerência funcional; hierarquia visual; diferenciação em relação à referência.
+Avalie o personagem pelos critérios: leitura em miniatura; clareza da personalidade; coerência funcional; hierarquia visual; diferenciação em relação à referência.
 Aponte fragilidades e proponha correções concretas. Não afirme que a originalidade pode ser garantida.
 
 ETAPA 6 — PROMPT FINAL DE IMAGEM
-${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Entregue um prompt autossuficiente do personagem"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
+${ia ? "Entregue um prompt autossuficiente desse personagem" : "Entregue um prompt autossuficiente do personagem"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
 Descreva: personagem, silhueta, proporções, rosto, cabelo, vestuário, materiais, acessórios, pose, expressão, cores, iluminação, acabamento, fundo e composição.
 ${b.formato === "prancha" ? "Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas." : "A imagem final é UM character design do personagem: corpo inteiro, em pose três-quartos que mostre a personalidade, fundo neutro liso, sem vistas múltiplas e sem textos."}
 Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.
@@ -670,7 +670,7 @@ function mostra(c, novo){
     const ok = esc && S(k.nome).toLowerCase() === esc;
     cs.append(el("div", { className:"conceito" + (ok ? " escolhido" : "") }, el("h3", {}, S(k.nome), ok ? el("span", { className:"pill", textContent:"escolhido" }) : null), dl));
   });
-  out.append(etapa("04", d.universo_proposto && d.universo_proposto.nome ? "Três personagens do universo" : arr(d.conceitos).length === 1 ? "O seu personagem" : "Três conceitos", cs));
+  out.append(etapa("04", arr(d.conceitos).length === 1 ? (d.universo_proposto && d.universo_proposto.nome ? "O personagem principal do universo" : "O seu personagem") : "Conceitos", cs));
   const r = d.revisao || {}, tb = el("table"), hd = el("tr"); ["Conceito","Miniatura","Personalidade","Coerência","Hierarquia","Diferenciação"].forEach(h => hd.append(el("th", { textContent:h }))); tb.append(hd);
   arr(r.comparacao).forEach(k => { const tr = el("tr"); [k.conceito, k.leitura_em_miniatura, k.clareza_da_personalidade, k.coerencia_funcional, k.hierarquia_visual, k.diferenciacao_da_referencia].forEach(x => tr.append(el("td", { textContent:S(x) }))); tb.append(tr); });
   out.append(etapa("05", "Revisão", el("div", { className:"tabela" }, tb), el("p", { className:"label", textContent:"Fragilidades" }), lista(r.fragilidades), el("p", { className:"label", textContent:"Correções" }), lista(r.correcoes)));
