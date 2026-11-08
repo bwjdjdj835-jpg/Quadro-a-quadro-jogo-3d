@@ -1,0 +1,6 @@
+{
+  "name": "reverso-personagens",
+  "private": true,
+  "type": "module",
+  "description": "Engenharia reversa de character design a partir de quadros de vídeo e imagens"
+}

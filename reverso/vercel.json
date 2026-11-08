@@ -1,0 +1,3 @@
+{
+  "functions": { "api/reverso.js": { "maxDuration": 120 } }
+}
