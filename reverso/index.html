@@ -116,60 +116,42 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
       <h1>Re<span>verso</span></h1>
       <p class="sub">Engenharia reversa de character design. Entenda como uma referência foi pensada (silhueta, formas, proporções, valores, cores) e use esses princípios para criar personagens novos para as suas obras de 2026.</p>
     </div>
-    <div class="tag">ANÁLISE VISUAL<br>6 ETAPAS · 3 CONCEITOS</div>
+    <div class="tag">ANÁLISE VISUAL<br>REFERÊNCIAS → PEDIDO → ENGENHARIA REVERSA</div>
   </header>
 
-  <div class="cols">
-    <section class="step" aria-labelledby="h1s">
-      <h2 id="h1s"><span class="n">01</span>Referências</h2>
-      <p class="note">Abra um vídeo para tirar quadros, ou adicione imagens (fichas, prints, artes). O vídeo e as imagens ficam no seu aparelho.</p>
-      <div class="drop" id="drop">
-        <span>Arraste aqui um vídeo ou imagens, ou</span>
-        <div class="row" style="justify-content:center">
-          <button class="btn pri" type="button" id="pickVid">Escolher vídeo</button>
-          <button class="btn" type="button" id="pickImg">Adicionar imagens</button>
-        </div>
-        <input type="file" id="fVid" accept="video/*,.mp4,.mov,.m4v,.webm" hidden>
-        <input type="file" id="fImg" accept="image/*" multiple hidden>
+  <section class="step" aria-labelledby="h1s">
+    <h2 id="h1s"><span class="n">01</span>Referências</h2>
+    <p class="note">Abra um vídeo para tirar quadros, ou adicione imagens (fichas, prints, artes). O vídeo e as imagens ficam no seu aparelho.</p>
+    <div class="drop" id="drop">
+      <span>Arraste aqui um vídeo ou imagens, ou</span>
+      <div class="row" style="justify-content:center">
+        <button class="btn pri" type="button" id="pickVid">Escolher vídeo</button>
+        <button class="btn" type="button" id="pickImg">Adicionar imagens</button>
       </div>
-      <video id="vid" controls playsinline preload="auto" hidden></video>
-      <div id="vidCtl" hidden>
-        <div class="fields">
-          <div class="field"><label class="label" for="iv">Um quadro a cada (s)</label><input type="number" id="iv" min="0.2" step="0.1" value="1"></div>
-          <div class="field"><label class="label" for="t0">Começar em (s)</label><input type="number" id="t0" min="0" step="0.1" value="0"></div>
-          <div class="field"><label class="label" for="t1">Terminar em (s)</label><input type="number" id="t1" min="0" step="0.1" value="0"></div>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn pri" type="button" id="go">Extrair quadros</button>
-          <button class="btn" type="button" id="stop" hidden>Parar</button>
-          <button class="btn" type="button" id="cap">Capturar este quadro</button>
-          <span class="meta" id="est"></span>
-        </div>
-      </div>
-      <div class="bar" id="bar" hidden><i id="barFill"></i></div>
-      <div id="st" class="status" hidden></div>
-    </section>
-
-    <section class="step" aria-labelledby="h2s">
-      <h2 id="h2s"><span class="n">02</span>Seu pedido</h2>
-      <div class="modos" role="radiogroup" aria-label="Quem cria">
-        <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e o app cria UM personagem: exatamente o que você pediu.</small></button>
-        <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
-      </div>
-      <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
-        <textarea id="pedidoLivre" rows="9" placeholder=""></textarea></div>
+      <input type="file" id="fVid" accept="video/*,.mp4,.mov,.m4v,.webm" hidden>
+      <input type="file" id="fImg" accept="image/*" multiple hidden>
+    </div>
+    <video id="vid" controls playsinline preload="auto" hidden></video>
+    <div id="vidCtl" hidden>
       <div class="fields">
-        <div class="field"><label class="label" for="bEstilo">Estilo</label><select id="bEstilo"><option value="ref">Igual às referências</option><option value="anime">Anime</option><option value="desenho">Desenho animado</option><option value="3d">Animação 3D</option><option value="realista">Realista</option></select></div>
-        <div class="field"><label class="label" for="bCriativ">Criatividade da IA</label><select id="bCriativ"><option value="fiel">Seguir à risca</option><option value="equilibrado" selected>Equilibrado</option><option value="livre">Criatividade livre</option></select></div>
-        <div class="field"><label class="label" for="bFormato">Imagem final</label><select id="bFormato"><option value="modelo">Igual ao modelo das referências (model sheet)</option><option value="imagem">Character design (uma imagem do personagem)</option><option value="prancha">Prancha / folha (frente, lado, costas, expressões)</option></select></div>
-        <div class="field"><label class="label" for="bIdioma">Idioma do prompt final</label><select id="bIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
+        <div class="field"><label class="label" for="iv">Um quadro a cada (s)</label><input type="number" id="iv" min="0.2" step="0.1" value="1"></div>
+        <div class="field"><label class="label" for="t0">Começar em (s)</label><input type="number" id="t0" min="0" step="0.1" value="0"></div>
+        <div class="field"><label class="label" for="t1">Terminar em (s)</label><input type="number" id="t1" min="0" step="0.1" value="0"></div>
       </div>
-    </section>
-  </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn pri" type="button" id="go">Extrair quadros</button>
+        <button class="btn" type="button" id="stop" hidden>Parar</button>
+        <button class="btn" type="button" id="cap">Capturar este quadro</button>
+        <span class="meta" id="est"></span>
+      </div>
+    </div>
+    <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+    <div id="st" class="status" hidden></div>
+  </section>
 
   <section class="step" aria-labelledby="h3s">
     <div class="row" style="justify-content:space-between">
-      <h2 id="h3s"><span class="n">03</span>Escolher as referências</h2>
+      <h2 id="h3s"><span class="n">02</span>Escolher as referências</h2>
       <span class="meta" id="count">0 referências</span>
     </div>
     <div class="row">
@@ -181,6 +163,23 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
       <button class="btn sm warn" type="button" id="limpar">Limpar tudo</button>
     </div>
     <div class="grid" id="grid"><div class="empty">As referências aparecem aqui.</div></div>
+  </section>
+
+  <section class="step" aria-labelledby="h2s">
+    <h2 id="h2s"><span class="n">03</span>Seu pedido (antes da engenharia reversa)</h2>
+    <div class="modos" role="radiogroup" aria-label="Quem cria">
+      <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e o app cria UM personagem: exatamente o que você pediu.</small></button>
+      <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
+    </div>
+    <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
+      <textarea id="pedidoLivre" rows="9" placeholder=""></textarea></div>
+    <div class="fields">
+      <div class="field"><label class="label" for="bEstilo">Estilo</label><select id="bEstilo"><option value="ref">Igual às referências</option><option value="anime">Anime</option><option value="desenho">Desenho animado</option><option value="3d">Animação 3D</option><option value="realista">Realista</option></select></div>
+      <div class="field"><label class="label" for="bCriativ">Criatividade da IA</label><select id="bCriativ"><option value="fiel">Seguir à risca</option><option value="equilibrado" selected>Equilibrado</option><option value="livre">Criatividade livre</option></select></div>
+      <div class="field"><label class="label" for="bFormato">Imagem final</label><select id="bFormato"><option value="modelo">Igual ao modelo das referências (model sheet)</option><option value="imagem">Character design (uma imagem do personagem)</option><option value="prancha">Prancha / folha (frente, lado, costas, expressões)</option></select></div>
+      <div class="field"><label class="label" for="bIdioma">Idioma do prompt final</label><select id="bIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
+    </div>
+    <div class="row"><button class="btn pri" type="button" id="iaPedido">Fazer a engenharia reversa com este pedido</button><span class="meta">o pedido fica salvo neste aparelho</span></div>
   </section>
 
   <section class="step" aria-labelledby="h4s">
@@ -360,7 +359,7 @@ $("#limpar").onclick = e => confirma(e.currentTarget, "Tem certeza? Toque de nov
 
 /* ---------- folha de referências (uma imagem só, para anexar) ---------- */
 async function folha(){
-  let sel = refs.filter(r => r.sel); if(!sel.length){ status2("Marque pelo menos uma referência no passo 03.", "err"); return null; }
+  let sel = refs.filter(r => r.sel); if(!sel.length){ status2("Marque pelo menos uma referência no passo 02.", "err"); return null; }
   if(sel.length > MAX_FOLHA) sel = Array.from({ length:MAX_FOLHA }, (_, i) => sel[Math.round(i*(sel.length-1)/(MAX_FOLHA-1))]);
   const cols = sel.length === 1 ? 1 : sel.length <= 4 ? 2 : 3, cw = sel.length === 1 ? 1600 : 760, rows = Math.ceil(sel.length/cols);
   const cellH = Math.round(cw*0.75), pad = 16, c = document.createElement("canvas");
@@ -556,7 +555,7 @@ IMPORTANTE: o prompt final será usado em outro chat, SEM as imagens de referên
 ENTREGUE TAMBÉM um BLOCO DE ESTILO reutilizável (5 a 8 linhas), só com o estilo aprendido e sem o personagem, para eu colar no começo de qualquer prompt futuro desta obra.`;
 }
 $("#montar").onclick = async () => {
-  if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
+  if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 03, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   const n = refs.filter(r => r.sel).length, btn = $("#montar"); btn.disabled = true;
   try{
     if(n){ status2(`Analisando ${Math.min(n, 60)} referências no seu aparelho…`); analiseAtual = await analisaRefs(); } else analiseAtual = null;
@@ -586,10 +585,11 @@ function mostraPerfis(){
   const ps = MotorReverso.perfis(), ks = Object.keys(ps);
   $("#perfisInfo").textContent = ks.length ? "Estilo aprendido: " + ks.map(k => `${k} (${ps[k].n} referências, ${ps[k].analises || 1} análise${(ps[k].analises || 1) > 1 ? "s" : ""})`).join(" · ") : "";
 }
+$("#iaPedido") && ($("#iaPedido").onclick = () => { $("#ia").click(); $("#h4s").scrollIntoView({ behavior:"smooth", block:"start" }); });
 $("#ia").onclick = async () => {
   const b = v(), sel = refs.filter(r => r.sel);
-  if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 02, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
-  if(!sel.length){ status2("Marque referências no passo 03: o motor precisa medir as imagens.", "err"); return; }
+  if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 03, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
+  if(!sel.length){ status2("Marque referências no passo 02: o motor precisa medir as imagens.", "err"); return; }
   const btn = $("#ia"); btn.disabled = true; $("#out").replaceChildren();
   try{
     const ms = [], t0 = performance.now();
