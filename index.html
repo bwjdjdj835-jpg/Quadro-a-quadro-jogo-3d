@@ -106,6 +106,9 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
 .sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.sharebox.destaque{border:2px solid var(--accent);border-radius:12px;padding:14px}
+details.sharebox summary{cursor:pointer}
+details.sharebox:not([open]){gap:0}
 #linkBox{display:flex;flex-direction:column;gap:10px}
 #linkItems{display:flex;flex-direction:column;gap:12px}
 .lrow{display:flex;flex-direction:column;gap:6px}
@@ -234,17 +237,17 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
     <div class="field"><label class="label" for="uniDesc">Como é o universo (mundo, época, clima, regras)</label><textarea id="uniDesc" placeholder="Quanto mais você contar, mais o personagem combina com o seu mundo. Fica salvo neste aparelho."></textarea></div>
     <div class="field"><label class="label" for="perNotas">O que você quer neste personagem (opcional)</label><textarea id="perNotas" placeholder="Ex.: jovem, cicatriz no olho, roupa de viajante, cores quentes"></textarea></div>
 
-    <div class="sharebox">
-      <span class="label">Opção A · A IA do app analisa os quadros</span>
-      <p class="note">Manda até 6 quadros marcados (reduzidos) para a IA, que identifica o vídeo e devolve a ficha e os prompts. Precisa do código de envio e da chave da IA configurada no site.</p>
+    <div class="sharebox destaque">
+      <span class="label">Gerar o prompt para o Gemini · grátis, sem senha</span>
+      <p class="note">Monta o pedido pronto. Depois é só copiar, colar no Gemini e anexar as fotos marcadas (fotos soltas ou a folha de contato do passo 05).</p>
+      <div class="row"><button class="btn pri" type="button" id="cMontar" disabled>Gerar prompt para o Gemini</button></div>
+    </div>
+    <details class="sharebox">
+      <summary class="label">Opção avançada · a IA do app analisa os quadros (precisa do código de envio)</summary>
+      <p class="note">Manda até 6 quadros marcados (reduzidos) para a IA, que identifica o vídeo e devolve a ficha e os prompts prontos. Precisa do código de envio (a variável UPLOAD_CODE da Vercel) e da chave da IA configurada no site. Se você não tem esse código, use o botão acima.</p>
       <div class="fields"><div class="field"><label class="label" for="aiCode">Código de envio</label><input type="password" id="aiCode" autocomplete="off" autocapitalize="none" placeholder="Digite uma vez"></div></div>
-      <div class="row"><button class="btn pri" type="button" id="cAi" disabled>Gerar com a IA do app</button></div>
-    </div>
-    <div class="sharebox">
-      <span class="label">Opção B · Montar o texto para colar no Gemini</span>
-      <p class="note">Não usa servidor nem chave. Monta o pedido pronto: cole no Gemini e anexe as fotos (use as fotos soltas ou a folha de contato do passo 05).</p>
-      <div class="row"><button class="btn" type="button" id="cMontar" disabled>Montar o pedido para o Gemini</button></div>
-    </div>
+      <div class="row"><button class="btn" type="button" id="cAi" disabled>Gerar com a IA do app</button></div>
+    </details>
 
     <div id="cst" class="status" hidden></div>
     <div id="cout" class="outs"></div>
@@ -901,8 +904,9 @@ function cRender(d){
 
 $("#cMontar").addEventListener("click",()=>{
   uniSave();
-  const out=$("#cout"); out.replaceChildren(promptBlock("Pedido para colar no Gemini", cPedido()));
-  show($("#cst"),"Pedido pronto. Copie, cole no Gemini e anexe as fotos (fotos soltas ou folha de contato do passo 05).","ok");
+  const nSel=frames.filter(f=>f.sel).length;
+  const out=$("#cout"); out.replaceChildren(promptBlock("Prompt para colar no Gemini", cPedido()));
+  show($("#cst"), nSel ? "Prompt pronto. Clique em Copiar, cole no Gemini e anexe as fotos marcadas (fotos soltas ou folha de contato do passo 05)." : "Prompt pronto. Atenção: você ainda não marcou quadros no passo 03. Marque os do personagem para anexar as fotos certas no Gemini.", nSel ? "ok" : "");
   out.scrollIntoView({behavior:"smooth", block:"start"});
 });
 
