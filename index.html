@@ -108,6 +108,7 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
 .sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
 input.codigo{-webkit-text-security:disc}
+.meuPrompt.principal{border:2px solid var(--accent);border-radius:12px;padding:14px}
 .btn.limpar{color:var(--bad);border-color:var(--bad)}
 #limparRow{margin-top:8px}
 .sharebox.destaque{border:2px solid var(--accent);border-radius:12px;padding:14px}
@@ -265,7 +266,18 @@ details.sharebox:not([open]){gap:0}
       <div class="field"><label class="label" for="cIdioma">Idioma dos prompts</label><select id="cIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
     </div>
     <div class="field"><label class="label" for="uniDesc">Como é o universo (mundo, época, clima, regras)</label><textarea id="uniDesc" placeholder="Quanto mais você contar, mais o personagem combina com o seu mundo. Fica salvo neste aparelho."></textarea></div>
-    <div class="field" id="cTextoBox" hidden><label class="label" for="cTexto">Seu prompt ou descrição do personagem</label><textarea id="cTexto" rows="6" placeholder="Ex.: guerreira de 20 anos, cabelo branco curto, cicatriz no olho esquerdo, jaqueta de couro vermelha, usa poder de gelo, vive numa cidade futurista chuvosa"></textarea></div>
+    <div class="sharebox meuPrompt" id="cTextoBox">
+      <span class="label">Seu prompt completo (opcional com vídeo, principal sem vídeo)</span>
+      <p class="note">Diga o que você quer em tópicos ou escreva tudo de uma vez. Vale junto com os quadros do vídeo ou sozinho.</p>
+      <div class="fields">
+        <div class="field"><label class="label" for="tObra">Filme ou obra (tipo e gênero)</label><input type="text" id="tObra" data-topico="Filme ou obra" placeholder="Ex.: filme de ficção científica, anime de ação" autocomplete="off"></div>
+        <div class="field"><label class="label" for="tCenario">Cenário, cidade e época</label><input type="text" id="tCenario" data-topico="Cenário e época" placeholder="Ex.: São Paulo em 2080, chuva e neon" autocomplete="off"></div>
+        <div class="field"><label class="label" for="tHistoria">História e conflito</label><input type="text" id="tHistoria" data-topico="História e conflito" placeholder="Ex.: detetive caça quem apagou a memória dela" autocomplete="off"></div>
+        <div class="field"><label class="label" for="tTom">Tom e clima</label><input type="text" id="tTom" data-topico="Tom e clima" placeholder="Ex.: sombrio, com momentos de humor" autocomplete="off"></div>
+      </div>
+      <div class="field"><label class="label" for="cTexto">Prompt completo (escreva do seu jeito)</label><textarea id="cTexto" rows="6" placeholder="Ex.: quero um filme de tal gênero, no universo tal, com uma personagem assim: guerreira de 20 anos, cabelo branco curto, cicatriz no olho, jaqueta vermelha, poder de gelo..."></textarea></div>
+      <div class="field"><label class="label" for="cCriativ">Criatividade da IA</label><select id="cCriativ"><option value="fiel">Seguir à risca o que eu escrevi</option><option value="equilibrado" selected>Equilibrado: segue e completa o que faltar</option><option value="livre">Criatividade livre: a IA inventa e surpreende</option></select></div>
+    </div>
     <div class="field"><label class="label" for="perNotas">O que você quer neste personagem (opcional)</label><textarea id="perNotas" placeholder="Ex.: jovem, cicatriz no olho, roupa de viajante, cores quentes"></textarea></div>
 
     <div class="sharebox destaque">
@@ -273,9 +285,9 @@ details.sharebox:not([open]){gap:0}
       <p class="note">Monta o pedido pronto. Depois é só copiar, colar no Gemini e anexar as fotos marcadas (fotos soltas ou a folha de contato do passo 05).</p>
       <div class="row"><button class="btn pri" type="button" id="cMontar" disabled>Gerar prompt para o Gemini</button></div>
     </div>
-    <details class="sharebox">
-      <summary class="label">Opção avançada · a IA do app analisa os quadros (precisa do código de envio)</summary>
-      <p class="note">Manda até 6 quadros marcados (reduzidos) para a IA, que identifica o vídeo e devolve a ficha e os prompts prontos. Precisa do código de envio (a variável UPLOAD_CODE da Vercel) e da chave da IA configurada no site. Se você não tem esse código, use o botão acima.</p>
+    <details class="sharebox" open>
+      <summary class="label">Gerar com a IA do app · ela cria com a criatividade dela (precisa do código de envio)</summary>
+      <p class="note">A IA do próprio app lê o seu prompt (e até 6 quadros marcados, se houver) e já devolve pronto: ficha, prompts, capa e sinopse, usando o nível de criatividade escolhido. Precisa do código de envio (a variável UPLOAD_CODE da Vercel) e da chave da IA configurada no site. Se você não tem esse código, use o botão acima.</p>
       <div class="fields"><div class="field"><label class="label" for="aiCode">Código de envio</label><input type="text" class="codigo" id="aiCode" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Digite uma vez"></div></div>
       <div class="row"><button class="btn" type="button" id="cAi" disabled>Gerar com a IA do app</button></div>
     </details>
@@ -852,15 +864,26 @@ const CAI_MAX = 6;
 function cPress(box, attr, val){ document.querySelectorAll(box+" .preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset[attr]===val))); }
 function cUpdate(){
   $("#uniLabel").textContent = cModo==="anime" ? "Universo do anime" : cModo==="texto" ? "Universo (opcional)" : "Universo fictício (opcional)";
-  $("#cTextoBox").hidden = cModo!=="texto"; cInfo();
+  $("#cTextoBox").classList.toggle("principal", cModo==="texto"); cInfo();
   $("#uniNome").placeholder = cModo==="anime" ? "Ex.: nome do seu universo" : "Ex.: um mundo novo inspirado no filme";
   try{ localStorage.setItem("cModo",cModo); localStorage.setItem("cSaida",cSaida); localStorage.setItem("cEstilo",cEstilo); }catch{}
 }
 document.querySelectorAll("#modoBox .preset").forEach(b=>b.addEventListener("click",()=>{ cModo=b.dataset.modo; cPress("#modoBox","modo",cModo); cUpdate(); }));
 document.querySelectorAll("#estiloBox .preset").forEach(b=>b.addEventListener("click",()=>{ cEstilo=b.dataset.estilo; cPress("#estiloBox","estilo",cEstilo); cUpdate(); }));
 document.querySelectorAll("#saidaBox .preset").forEach(b=>b.addEventListener("click",()=>{ cSaida=b.dataset.saida; cPress("#saidaBox","saida",cSaida); cUpdate(); }));
-try{ const t=localStorage.getItem("cTexto"); if(t) $("#cTexto").value=t; }catch{}
-$("#cTexto").addEventListener("input",()=>{ try{ localStorage.setItem("cTexto",$("#cTexto").value.slice(0,3000)); }catch{} });
+const CAMPOS_PROMPT = ["cTexto","tObra","tCenario","tHistoria","tTom","cCriativ"];
+try{ const t=JSON.parse(localStorage.getItem("cPrompt")||"null") || { cTexto: localStorage.getItem("cTexto")||"" }; CAMPOS_PROMPT.forEach(id=>{ if(t[id]) $("#"+id).value=t[id]; }); }catch{}
+CAMPOS_PROMPT.forEach(id=>$("#"+id).addEventListener(id==="cCriativ"?"change":"input",()=>{ try{ const o={}; CAMPOS_PROMPT.forEach(k=>o[k]=$("#"+k).value.slice(0,3000)); localStorage.setItem("cPrompt",JSON.stringify(o)); }catch{} }));
+const CRIATIV = {
+  fiel: "CRIATIVIDADE: siga à risca o que eu escrevi. Só complete o mínimo necessário e não mude nada do que eu pedi.",
+  equilibrado: "CRIATIVIDADE: siga o que eu escrevi e complete com bom gosto o que faltar.",
+  livre: "CRIATIVIDADE LIVRE: use o que eu escrevi como ponto de partida e use a sua criatividade. Invente detalhes, reviravoltas e um visual marcante e surpreendente, mantendo tudo coerente."
+};
+function meuPrompt(){
+  const L=[]; ["tObra","tCenario","tHistoria","tTom"].forEach(id=>{ const v=$("#"+id).value.trim(); if(v) L.push(`${$("#"+id).dataset.topico}: ${v}`); });
+  const t=$("#cTexto").value.trim(); if(t) L.push(t);
+  return L.join("\n");
+}
 const CAPA_FMT = {
   poster: { pt:"pôster de filme vertical, proporção 2:3", en:"vertical movie poster, 2:3 aspect ratio" },
   streaming: { pt:"capa horizontal de série ou anime para streaming, proporção 16:9", en:"horizontal streaming key art for a series or anime, 16:9 aspect ratio" },
@@ -883,7 +906,7 @@ function uniLoad(){ try{ const u=JSON.parse(localStorage.getItem("universos2")||
 function uniList(){ $("#uniNames").replaceChildren(...uniLoad().map(x=>Object.assign(document.createElement("option"),{value:x.n}))); }
 function uniSave(){ const n=$("#uniNome").value.trim().slice(0,80); if(!n) return; const d=$("#uniDesc").value.trim().slice(0,900); const u=uniLoad().filter(x=>x.n!==n); u.push({n,d}); while(u.length>8) u.shift(); try{ localStorage.setItem("universos2",JSON.stringify(u)); }catch{} uniList(); }
 $("#uniNome").addEventListener("input",()=>{ const n=$("#uniNome").value.trim(), x=uniLoad().find(y=>y.n===n); if(x) $("#uniDesc").value=x.d; });
-function cVals(){ return { uni:$("#uniNome").value.trim(), desc:$("#uniDesc").value.trim(), nome:$("#perNome").value.trim(), funcao:$("#perFuncao").value.trim(), notas:$("#perNotas").value.trim(), texto:$("#cTexto").value.trim(), idioma:$("#cIdioma").value }; }
+function cVals(){ return { uni:$("#uniNome").value.trim(), desc:$("#uniDesc").value.trim(), nome:$("#perNome").value.trim(), funcao:$("#perFuncao").value.trim(), notas:$("#perNotas").value.trim(), texto:meuPrompt(), criatividade:$("#cCriativ").value, idioma:$("#cIdioma").value }; }
 
 /* Opção B: monta o pedido para colar no Gemini (sem servidor, sem chave) */
 function cPedido(){
@@ -896,13 +919,14 @@ function cPedido(){
     L.push("Você é diretor de arte e character designer sênior. As imagens anexadas são quadros de um filme ou série que eu gravei (pode ser live-action ou animado). Primeiro descubra do que se trata: se é realista ou animado (anime, desenho, 3D), gênero, época, ambientação, fotografia, paleta e figurino. Depois crie um personagem ORIGINAL de um universo fictício novo, inspirado nesse visual.");
     L.push("Não recrie personagens da obra, não copie o rosto de nenhum ator e não identifique pessoas pelo rosto.");
   }
+  L.push("", CRIATIV[v.criatividade] || CRIATIV.equilibrado);
   L.push("", `ESTILO DO PERSONAGEM: ${ESTILOS[cEstilo].nome}. Desenhe e descreva o personagem ${estTxt("pt")}.`, "");
   if(v.uni || v.desc){ L.push(`UNIVERSO${v.uni?`: ${v.uni}`:""}`); if(v.desc) L.push(v.desc); L.push(""); }
   if(v.nome || v.funcao || v.notas){ L.push("PERSONAGEM"); if(v.nome) L.push(`Nome: ${v.nome}`); if(v.funcao) L.push(`Papel: ${v.funcao}`); if(v.notas) L.push(`Pedidos meus: ${v.notas}`); L.push(""); }
   const cont = {}; const names = [];
   sel.forEach(f=>{ const k=(f.label||"").trim(); if(!k) return; if(!cont[k]){ cont[k]=0; names.push(k); } cont[k]++; });
-  if(cModo==="texto"){ L.push("MEU PROMPT / DESCRIÇÃO DO PERSONAGEM", v.texto || "(não escrevi nada: crie a partir do universo, do nome e do papel acima)", ""); }
-  else L.push(`Anexei ${sel.length||"vários"} quadros${names.length?`; os nomes que dei a eles: ${names.map(k=>`${k} (${cont[k]})`).join(", ")}`:""}.`, "");
+  if(cModo==="texto"){ L.push("MEU PROMPT", v.texto || "(não escrevi nada: crie a partir do universo, do nome e do papel acima)", ""); }
+  else { if(v.texto) L.push("MEU PROMPT (vale junto com as imagens)", v.texto, ""); L.push(`Anexei ${sel.length||"vários"} quadros${names.length?`; os nomes que dei a eles: ${names.map(k=>`${k} (${cont[k]})`).join(", ")}`:""}.`, ""); }
   if(cSaida!=="gemini"){
     L.push("ENTREGUE A FICHA TÉCNICA, em português, nesta ordem:",
       cModo==="texto" ? "1. O estilo visual do personagem e 5 a 7 cores em código hexadecimal." : "1. Do que se trata o vídeo: se é realista ou animado (anime, desenho, 3D), o estilo visual e 5 a 7 cores em código hexadecimal.",
@@ -1006,7 +1030,7 @@ $("#cMontar").addEventListener("click",()=>{
   uniSave();
   const nSel=frames.filter(f=>f.sel).length;
   const out=$("#cout"); out.replaceChildren(promptBlock("Prompt para colar no Gemini", cPedido()));
-  if(cModo==="texto"){ show($("#cst"), $("#cTexto").value.trim() ? "Prompt pronto. Clique em Copiar e cole no Gemini. Não precisa anexar fotos." : "Prompt pronto, mas o campo do seu prompt está vazio. Escreva a descrição do personagem para um resultado melhor.", $("#cTexto").value.trim() ? "ok" : ""); out.scrollIntoView({behavior:"smooth", block:"start"}); return; }
+  if(cModo==="texto"){ show($("#cst"), meuPrompt() ? "Prompt pronto. Clique em Copiar e cole no Gemini. Não precisa anexar fotos." : "Prompt pronto, mas o seu prompt está vazio. Preencha os tópicos ou o prompt completo para um resultado melhor.", meuPrompt() ? "ok" : ""); out.scrollIntoView({behavior:"smooth", block:"start"}); return; }
   show($("#cst"), nSel ? "Prompt pronto. Clique em Copiar, cole no Gemini e anexe as fotos marcadas (fotos soltas ou folha de contato do passo 05)." : "Prompt pronto. Atenção: você ainda não marcou quadros no passo 03. Marque os do personagem para anexar as fotos certas no Gemini.", nSel ? "ok" : "");
   out.scrollIntoView({behavior:"smooth", block:"start"});
 });
@@ -1038,7 +1062,7 @@ try{ const c = localStorage.getItem("uploadCode"); if(c) $("#aiCode").value = c;
 $("#cAi").addEventListener("click", async()=>{
   const st=$("#cst"), sel = cModo==="texto" ? [] : cFrames();
   if(cModo!=="texto" && !sel.length){ show(st,"Marque pelo menos um quadro no passo 03.","err"); return; }
-  if(cModo==="texto" && !$("#cTexto").value.trim()){ show(st,"Escreva o seu prompt ou a descrição do personagem.","err"); $("#cTexto").focus(); return; }
+  if(cModo==="texto" && !meuPrompt()){ show(st,"Escreva o seu prompt ou a descrição do personagem.","err"); $("#cTexto").focus(); return; }
   const code=$("#aiCode").value.trim(); if(!code){ show(st,"Digite o código de envio.","err"); $("#aiCode").focus(); return; }
   const btn=$("#cAi"); btn.disabled=true; $("#cout").replaceChildren(); uniSave();
   try{
@@ -1047,7 +1071,7 @@ $("#cAi").addEventListener("click", async()=>{
     show(st, cModo==="texto" ? "A IA está criando o personagem a partir do seu prompt… pode levar até 1 minuto." : "A IA está olhando os quadros e criando o personagem… pode levar até 1 minuto.");
     const v=cVals();
     const r = await fetch("/api/ficha", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" },
-      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, texto:v.texto, extras:cExtras(), imagens }) });
+      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, texto:v.texto, criatividade:v.criatividade, extras:cExtras(), imagens }) });
     let j=null; try{ j=await r.json(); }catch{}
     if(r.status===404) throw new Error("A IA do app só funciona no site publicado, não no computador local.");
     if(!r.ok) throw new Error(CAI_ERR[j&&j.error] || `Não deu certo (erro ${r.status}).`);

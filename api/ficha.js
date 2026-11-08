@@ -26,6 +26,12 @@ const ESTILOS = {
 
 const clip = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
+const CRIATIV = {
+  fiel: { t: 0.4, txt: 'CRIATIVIDADE: siga à risca o que o usuário escreveu. Complete só o mínimo necessário.' },
+  equilibrado: { t: 0.8, txt: 'CRIATIVIDADE: siga o que o usuário escreveu e complete com bom gosto o que faltar.' },
+  livre: { t: 1, txt: 'CRIATIVIDADE LIVRE: use o pedido do usuário como ponto de partida e crie com liberdade: invente detalhes, reviravoltas e um visual marcante e surpreendente, mantendo coerência.' },
+};
+
 const CAPA_FMT = {
   poster: 'pôster de filme vertical, proporção 2:3',
   streaming: 'capa horizontal de série ou anime para streaming, proporção 16:9',
@@ -74,7 +80,7 @@ const ESQUEMA = `{
   "avisos": ["o que ficou incerto ou o que o usuário deve conferir"]
 }`;
 
-function systemPrompt({ modo, saida, idioma, estilo, extras }) {
+function systemPrompt({ modo, saida, idioma, estilo, extras, criatividade }) {
   const comum = [
     'Você é um diretor de arte e character designer sênior. Você recebe quadros extraídos de um vídeo que o usuário gravou e usa SÓ como referência visual de estilo.',
     'Regras que valem sempre:',
@@ -112,6 +118,7 @@ function systemPrompt({ modo, saida, idioma, estilo, extras }) {
   return [
     ...comum,
     ...porModo,
+    CRIATIV[criatividade].txt,
     extras.sinopse
       ? `SINOPSE: preencha "obra" com título (${extras.titulo ? `use "${extras.titulo}"` : 'sugira um título original'}), logline, sinopse de um parágrafo sem contar o final, e gênero e público. Escreva em português do Brasil.`
       : 'Deixe "obra" com campos vazios, a menos que a capa precise do título.',
@@ -156,6 +163,7 @@ export default async function handler(req, res) {
   const saida = ['ficha', 'gemini', 'ambos'].includes(b.saida) ? b.saida : 'ambos';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
   const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'video';
+  const criatividade = Object.hasOwn(CRIATIV, b.criatividade) ? b.criatividade : 'equilibrado';
   const x = b.extras || {};
   const extras = { sinopse: !!x.sinopse, capa: !!x.capa, titulo: clip(x.titulo, 80), capaFmt: Object.hasOwn(CAPA_FMT, x.capaFmt) ? x.capaFmt : 'poster' };
   const imgs = Array.isArray(b.imagens) ? b.imagens.slice(0, MAX_IMAGES) : [];
@@ -177,7 +185,7 @@ export default async function handler(req, res) {
   const p = b.personagem || {};
   const pedido = [
     `Modo: ${modo === 'anime' ? 'anime do usuário' : modo === 'texto' ? 'a partir do prompt do usuário, sem imagens' : 'filme/série como referência'}.`,
-    texto ? `Prompt / descrição do usuário: ${texto}` : '',
+    texto ? `Prompt do usuário${modo === 'texto' ? '' : ' (vale junto com as imagens)'}:\n${texto}` : '',
     u.nome ? `Universo: ${clip(u.nome, 80)}.` : '',
     u.descricao ? `Descrição do universo: ${clip(u.descricao, 900)}` : '',
     p.nome ? `Nome do personagem (o usuário já escolheu): ${clip(p.nome, 80)}.` : '',
@@ -201,7 +209,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 4000,
-        system: systemPrompt({ modo, saida, idioma, estilo, extras }),
+        temperature: CRIATIV[criatividade].t,
+        system: systemPrompt({ modo, saida, idioma, estilo, extras, criatividade }),
         messages: [{ role: 'user', content }],
       }),
     });

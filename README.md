@@ -19,6 +19,8 @@ Com os quadros marcados, escolha:
 
 4. **Capa e sinopse (opcional):** marque *Sinopse da obra* (título, frase de efeito e resumo) e/ou *Capa* (prompt para gerar a capa: pôster 2:3, capa de streaming 16:9 ou capa de mangá/livro), com título opcional.
 
+5. **Seu prompt completo:** tópicos (filme ou obra, cenário e época, história, tom) e um campo livre. Vale junto com os quadros ou sozinho (modo *A partir de um prompt*). **Criatividade da IA:** seguir à risca, equilibrado ou criatividade livre.
+
 Duas formas de gerar:
 
 - **Opção A, IA do app** (`/api/ficha`): manda até 6 quadros reduzidos para a API do Claude e mostra a ficha e os prompts. Precisa, na Vercel (Settings → Environment Variables):
