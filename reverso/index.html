@@ -187,14 +187,15 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos (ou universo + 3 personagens, se a IA cria tudo) → revisão → prompt final.</p>
     <div class="box destaque">
       <h3>Gerar o pedido completo · grátis, sem código</h3>
-      <p class="note">Monta o roteiro das 6 etapas com o seu pedido. Cole no Gemini, ChatGPT ou Claude e anexe só a folha das referências (uma imagem com até 12 quadros). A IA analisa a folha e devolve o prompt final com o estilo escrito em palavras, que funciona sem anexar nada.</p>
-      <div class="row"><button class="btn pri" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha das referências</button></div>
+      <p class="note">O app analisa as referências marcadas aqui mesmo (paleta, claros e escuros, contraste, linha, sombreamento) e escreve essa análise dentro do pedido. Cole no Gemini, ChatGPT ou Claude: não precisa anexar nada. A folha das referências é opcional, só para mais precisão em silhueta e rosto.</p>
+      <div class="row"><button class="btn pri" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha (opcional)</button></div>
     </div>
     <details class="box" open>
       <summary>Analisar com a IA do app · ela faz as 6 etapas sozinha (precisa do código de envio)</summary>
       <p class="note">Envia até 8 referências marcadas (reduzidas) e o seu pedido. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
       <div class="fields"><div class="field"><label class="label" for="code">Código de envio</label><input type="text" class="codigo" id="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Digite uma vez"></div></div>
       <div class="row"><button class="btn" type="button" id="ia">Analisar com a IA do app</button><span class="meta" id="iaInfo"></span></div>
+      <div id="iaStatus" class="status" hidden></div>
     </details>
     <div id="st2" class="status" hidden></div>
     <div id="out" class="out"></div>
@@ -409,24 +410,100 @@ const ESTILO_TXT = { ref:"no mesmo nível de estilização das referências", an
 const CRIATIV_TXT = { fiel:"Siga o briefing à risca e complete só o necessário.", equilibrado:"Siga o briefing e complete com bom gosto o que faltar.", livre:"Use criatividade livre: proponha soluções ousadas e surpreendentes, mantendo coerência com o briefing." };
 
 /* ---------- Opção A: pedido completo para colar ---------- */
+/* ---------- análise técnica feita pelo próprio app (no navegador) ---------- */
+function rgb2hsl(r, g, b){ r/=255; g/=255; b/=255; const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2; let h = 0, s = 0;
+  if(mx !== mn){ const d = mx-mn; s = l > .5 ? d/(2-mx-mn) : d/(mx+mn); h = mx === r ? (g-b)/d + (g < b ? 6 : 0) : mx === g ? (b-r)/d + 2 : (r-g)/d + 4; h *= 60; } return [h, s, l]; }
+function nomeCor(r, g, b){
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), cr = mx-mn, l = (mx+mn)/510, [h] = rgb2hsl(r, g, b);
+  if(cr < 18) return l < .15 ? "preto" : l > .88 ? "branco" : l < .4 ? "cinza-escuro" : l > .7 ? "cinza-claro" : "cinza";
+  if(cr < 50 && l > .7 && (h < 70 || h > 330)) return "bege / creme";
+  const nomes = [[15,"vermelho"],[40,"laranja"],[52,"amarelo-ouro"],[70,"amarelo"],[160,"verde"],[190,"verde-água"],[210,"azul-céu"],[250,"azul"],[285,"roxo"],[330,"magenta"],[360,"vermelho"]];
+  let n = nomes.find(x => h < x[0])[1];
+  if((n === "laranja" || n === "amarelo-ouro") && l < .45) n = "marrom";
+  if(n === "laranja" && l > .55 && cr < 110) n = "pele / pêssego";
+  return (l < .28 ? n + " escuro" : l > .75 ? n + " claro" : n) + (cr < 45 ? " acinzentado" : "");
+}
+const hex = (r, g, b) => "#" + [r, g, b].map(x => Math.round(x).toString(16).padStart(2, "0")).join("");
+async function analisaRefs(){
+  const sel = refs.filter(r => r.sel); if(!sel.length) return null;
+  const amostra = sel.length > 60 ? Array.from({ length:60 }, (_, i) => sel[Math.round(i*(sel.length-1)/59)]) : sel;
+  const W = 120, px = [], c = document.createElement("canvas"), x = c.getContext("2d", { willReadFrequently:true });
+  let esc = 0, med = 0, cla = 0, sumL = 0, sumL2 = 0, sumS = 0, quente = 0, frio = 0, sat = 0, bordaF = 0, plano = 0, nInt = 0, fg = 0, total = 0, ratio = 0;
+  const fundos = [];
+  for(const r of amostra){
+    const bmp = await createImageBitmap(r.blob), H = Math.max(1, Math.round(W*bmp.height/bmp.width)); ratio += bmp.width/bmp.height;
+    c.width = W; c.height = H; x.drawImage(bmp, 0, 0, W, H); bmp.close && bmp.close();
+    const d = x.getImageData(0, 0, W, H).data, N = W*H, L = new Float32Array(N), F = new Uint8Array(N);
+    // cor do fundo = mediana das bordas da imagem
+    const bR = [], bG = [], bB = [];
+    for(let j=0; j<N; j++){ const yy = Math.floor(j/W), xx = j%W; if(yy < 2 || yy >= H-2 || xx < 2 || xx >= W-2){ bR.push(d[j*4]); bG.push(d[j*4+1]); bB.push(d[j*4+2]); } }
+    const med_ = a => a.sort((p, q) => p-q)[a.length >> 1], fb = [med_(bR), med_(bG), med_(bB)]; fundos.push(fb);
+    let nf = 0; for(let j=0; j<N; j++){ const dd = Math.abs(d[j*4]-fb[0]) + Math.abs(d[j*4+1]-fb[1]) + Math.abs(d[j*4+2]-fb[2]); if(dd > 60){ F[j] = 1; nf++; } }
+    const usaTudo = nf < N*.08; // se quase tudo é fundo, mede a imagem inteira
+    for(let j=0; j<N; j++){
+      const R = d[j*4], G = d[j*4+1], B = d[j*4+2], l = (.299*R + .587*G + .114*B)/255; L[j] = l;
+      if(!usaTudo && !F[j]) continue;
+      fg++; sumL += l; sumL2 += l*l;
+      if(l < .33) esc++; else if(l < .66) med++; else cla++;
+      const mx = Math.max(R,G,B), sv = mx ? (mx-Math.min(R,G,B))/mx : 0, [h] = rgb2hsl(R, G, B); sumS += sv;
+      if(sv > .3 && mx > 40){ sat++; if(h < 75 || h > 330) quente++; else if(h > 165 && h < 290) frio++; }
+      if(j % 3 === 0) px.push([R, G, B]);
+    }
+    total += N;
+    for(let y=1; y<H-1; y++) for(let q=1; q<W-1; q++){ const k = y*W+q; if(!usaTudo && !F[k]) continue; nInt++; const m = Math.hypot(L[k+1]-L[k-1], L[k+W]-L[k-W]); if(m > .25) bordaF++; else if(m < .02) plano++; }
+  }
+  if(!px.length) return null;
+  const K = 7; let cent = Array.from({ length:K }, (_, i) => px[Math.floor((i+.5)*px.length/K)].slice());
+  for(let it=0; it<12; it++){ const acc = cent.map(() => [0,0,0,0]);
+    for(const p of px){ let bi = 0, bd = 1e9; cent.forEach((cc, i) => { const dd = (p[0]-cc[0])**2 + (p[1]-cc[1])**2 + (p[2]-cc[2])**2; if(dd < bd){ bd = dd; bi = i; } }); const a = acc[bi]; a[0] += p[0]; a[1] += p[1]; a[2] += p[2]; a[3]++; }
+    cent = acc.map((a, i) => a[3] ? [a[0]/a[3], a[1]/a[3], a[2]/a[3], a[3]] : [...cent[i].slice(0,3), 0]); }
+  const paleta = cent.filter(cc => cc[3]/px.length >= .02).sort((a, b) => b[3]-a[3]).map(cc => ({ hex: hex(cc[0], cc[1], cc[2]), nome: nomeCor(cc[0], cc[1], cc[2]), pct: Math.round(cc[3]/px.length*100) }));
+  const fm = [0,1,2].map(k => fundos.reduce((s_, f) => s_ + f[k], 0)/fundos.length);
+  const mL = sumL/fg, desv = Math.sqrt(Math.max(0, sumL2/fg - mL*mL));
+  return { usadas: amostra.length, marcadas: sel.length, paleta, areaFigura: Math.round(fg/total*100),
+    valores: { escuros: Math.round(esc/fg*100), medios: Math.round(med/fg*100), claros: Math.round(cla/fg*100), luz: mL, contraste: desv },
+    saturacao: sumS/fg, quente: sat ? Math.round(quente/sat*100) : 0, frio: sat ? Math.round(frio/sat*100) : 0, pctSat: Math.round(sat/fg*100),
+    bordas: bordaF/Math.max(1, nInt), plano: plano/Math.max(1, nInt), fundo: `${nomeCor(...fm)} ${hex(...fm)}`, proporcao: ratio/amostra.length };
+}
+function textoAnalise(a){
+  if(!a) return "";
+  const v = a.valores, chave = v.luz > .6 ? "chave alta (imagem predominantemente clara)" : v.luz < .35 ? "chave baixa (imagem predominantemente escura)" : "chave média";
+  const contr = a.contraste > .26 ? "contraste forte" : a.contraste > .17 ? "contraste médio" : "contraste suave";
+  const satTxt = a.saturacao > .5 ? "cores saturadas e vivas" : a.saturacao > .25 ? `saturação moderada (${a.pctSat}% da figura em cores fortes)` : `cores dessaturadas, quase neutras (${a.pctSat}% da figura em cores fortes)`;
+  const temp = a.quente > a.frio + 15 ? `dominância quente (${a.quente}% das cores saturadas são quentes)` : a.frio > a.quente + 15 ? `dominância fria (${a.frio}% das cores saturadas são frias)` : `temperatura equilibrada (${a.quente}% quentes, ${a.frio}% frias)`;
+  const linha = a.bordas > .09 ? "muitas bordas fortes: contornos marcados e bastante detalhe" : a.bordas > .045 ? "bordas definidas em quantidade moderada: contorno presente, detalhe médio" : "poucas bordas fortes: formas suaves, contorno discreto ou ausente";
+  const sombra = a.plano > .55 ? "grandes áreas de cor chapada: sombreamento em blocos, tipo cel-shading" : a.plano > .35 ? "mistura de áreas chapadas e gradientes" : "pouca área chapada: sombreamento em gradiente, textura ou pintura";
+  const fmtImg = a.proporcao > 1.5 ? "imagens horizontais (16:9 ou mais largas)" : a.proporcao < .8 ? "imagens verticais" : "imagens quase quadradas";
+  return `ANÁLISE TÉCNICA DAS REFERÊNCIAS (medida pelo app em ${a.usadas} de ${a.marcadas} imagens marcadas; não há imagens anexadas)
+- Medido só na figura (sem o fundo liso), que ocupa cerca de ${a.areaFigura}% da imagem.
+- Paleta da figura (estimada, % da área): ${a.paleta.map(p => `${p.nome} ${p.hex} ${p.pct}%`).join("; ")}.
+- Valores: ${v.escuros}% escuros, ${v.medios}% médios, ${v.claros}% claros; ${chave}; ${contr}.
+- Cor: ${satTxt}; ${temp}.
+- Linha e detalhe: ${linha}.
+- Sombreamento: ${sombra}.
+- Fundo: ${a.fundo}. Formato: ${fmtImg}.
+Observação: são medidas automáticas (cores, valores, bordas). Silhueta, rosto, figurino e gesto não foram medidos: deduza do pedido e marque como hipótese.`;
+}
+let analiseAtual = null;
+
 function pedido(){
-  const b = v(), n = refs.filter(r => r.sel).length, ia = b.modo === "ia";
+  const b = v(), n = refs.filter(r => r.sel).length, ia = b.modo === "ia", an = textoAnalise(analiseAtual);
   return `Atue como analista de desenvolvimento visual e designer de personagens.
 
 OBJETIVO
-Analisar as referências anexadas para inferir os princípios visuais que sustentam o design delas e aplicar esses princípios à criação de um personagem novo.
+Analisar as referências para inferir os princípios visuais que sustentam o design delas e aplicar esses princípios à criação de um personagem novo.
 Não trate a tarefa como reprodução pixel a pixel. Trabalhe do geral para o específico: conceito, silhueta, proporções, massas, valores, cores, materiais e detalhes.
 
 ENTRADAS
-- Imagens de referência: ${n ? `${n} anexadas (em uma folha numerada ou soltas)` : "vou anexar"}.
+- Referências: ${an ? `NÃO estão anexadas. O app já analisou ${analiseAtual.usadas} imagens e a análise técnica está abaixo. Use essa análise e o meu pedido como base da engenharia reversa.` : "não há imagens nem análise; trabalhe a partir do meu pedido e diga o que precisou supor."}
 - Estilo do personagem novo: ${ESTILO_TXT[b.estilo]}.
 - Criatividade: ${CRIATIV_TXT[b.criatividade]}
 ${ia ? `- VOCÊ CRIA TUDO: invente o universo (nome, premissa, mundo, tom) e 3 personagens diferentes desse universo, a partir do que aprender com as referências.${b.texto ? `\n- Minhas pistas: ${b.texto}` : ""}` : `- MEU PEDIDO (tema, papel, personalidade, uso final, características obrigatórias e o universo estão aqui):\n${b.texto || "[escrever o pedido]"}`}
 
-Se faltar uma informação essencial, faça até três perguntas objetivas.
+${an ? an + "\n\n" : ""}Se faltar uma informação essencial, faça até três perguntas objetivas, mas entregue o trabalho completo assim mesmo, dizendo o que supôs.
 
 ETAPA 1 — LEITURA DA REFERÊNCIA
-Separe observações visíveis de hipóteses.
+Separe o que vem da análise técnica (dado medido) do que é hipótese sua.
 Não invente detalhes ilegíveis nem afirme conhecer o processo original.
 Se a referência for uma montagem com miniaturas, indique quais análises exigem uma imagem maior.
 
@@ -476,11 +553,14 @@ IMPORTANTE: o prompt final será usado em outro chat, SEM as imagens de referên
 
 ENTREGUE TAMBÉM um BLOCO DE ESTILO reutilizável (5 a 8 linhas), só com o estilo aprendido e sem o personagem, para eu colar no começo de qualquer prompt futuro desta obra.`;
 }
-$("#montar").onclick = () => {
+$("#montar").onclick = async () => {
   if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
+  const n = refs.filter(r => r.sel).length, btn = $("#montar"); btn.disabled = true;
+  try{
+    if(n){ status2(`Analisando ${Math.min(n, 60)} referências no seu aparelho…`); analiseAtual = await analisaRefs(); } else analiseAtual = null;
+  }catch{ analiseAtual = null; } finally{ btn.disabled = false; }
   const t = pedido(), out = $("#out"); out.replaceChildren(blocoTexto("Pedido completo para colar", t));
-  const n = refs.filter(r => r.sel).length;
-  status2(n ? `Pedido pronto. Copie, cole no Gemini, ChatGPT ou Claude e anexe UMA imagem: a folha das referências (botão "Baixar folha das referências"). O prompt final que a IA devolver já vem com o estilo escrito em palavras, para você usar depois sem anexar nada.` : "Pedido pronto. Você ainda não tem referências marcadas: anexe as imagens no chat da IA ou marque referências no passo 03.", n ? "ok" : "");
+  status2(n ? `Pedido pronto, com a análise técnica das ${n} referências já escrita nele (paleta, valores, contraste, linha, sombreamento). Copie e cole no Gemini, ChatGPT ou Claude. Não precisa anexar nada.` : "Pedido pronto, mas sem referências marcadas: a IA vai trabalhar só com o que você escreveu.", n ? "ok" : "");
   out.scrollIntoView({ behavior:"smooth", block:"start" });
 };
 
@@ -519,7 +599,7 @@ $("#ia").onclick = async () => {
     status2(`Preparando ${sel.length} referências…`);
     const imagens = []; for(const r of sel) imagens.push({ data: await b64(r), nome: r.nome });
     status2(b.modo === "ia" ? "A IA está estudando as referências e criando o universo e 3 personagens… pode levar até 2 minutos." : "A IA está fazendo a engenharia reversa e criando os 3 conceitos… pode levar até 2 minutos.");
-    const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ modo:b.modo, pedido:b.texto, estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens }) });
+    const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify({ modo:b.modo, pedido:b.texto, analise: textoAnalise(await analisaRefs().catch(() => null)), estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens }) });
     let j = null; try{ j = await r.json(); }catch{}
     if(r.status === 404) throw new Error("A IA do app só funciona no site publicado na Vercel.");
     if(!r.ok) throw new Error(ERR[j && j.error] || `Não deu certo (erro ${r.status}).`);
@@ -609,6 +689,14 @@ function criacoes(){
 }
 $("#expTudo").onclick = () => { const l = store.get("reverso-criacoes", []); if(l.length) baixar("reverso_minhas-criacoes-2026.txt", new Blob([l.map(texto).join("\n\n==========\n\n")], { type:"text/plain;charset=utf-8" })); };
 criacoes(); render();
+(async () => { // a IA do app está configurada na Vercel?
+  try{
+    if(location.protocol === "file:") return;
+    const r = await fetch("/api/status", { cache:"no-store" }); if(!r.ok) return; const j = await r.json();
+    if(j.codigo && j.chave) show($("#iaStatus"), "IA do app: configurada e pronta. Ela vê as imagens e faz a engenharia reversa sozinha.", "ok");
+    else show($("#iaStatus"), `IA do app ainda não está ligada: falta ${[!j.chave && "ANTHROPIC_API_KEY", !j.codigo && "UPLOAD_CODE"].filter(Boolean).join(" e ")} nas configurações deste projeto na Vercel (Settings → Environment Variables), depois Redeploy. Enquanto isso, use "Gerar pedido completo", que já leva a análise das imagens.`, "err");
+  }catch{}
+})();
 </script>
 </body>
 </html>

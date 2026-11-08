@@ -132,6 +132,7 @@ export default async function handler(req, res) {
 
   const modo = b.modo === 'ia' ? 'ia' : 'descrevo';
   const pedidoTxt = String(b.pedido ?? '').slice(0, 4000).trim();
+  const analise = String(b.analise ?? '').slice(0, 3000).trim();
   const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'ref';
   const criatividade = Object.hasOwn(CRIATIV, b.criatividade) ? b.criatividade : 'equilibrado';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
@@ -153,8 +154,9 @@ export default async function handler(req, res) {
     modo === 'ia' ? 'MODO: a IA cria tudo (universo e 3 personagens).' : 'MODO: o usuário descreve o personagem.',
     pedidoTxt ? (modo === 'ia' ? `Pistas do usuário:\n${pedidoTxt}` : `Pedido do usuário (texto livre):\n${pedidoTxt}`) : 'O usuário não escreveu nada: decida tudo a partir das referências.',
     n ? `Foram enviadas ${n} imagens de referência, na ordem.` : 'Nenhuma imagem foi enviada.',
+    analise ? `Medidas automáticas feitas pelo app em mais referências do que as enviadas (use como apoio; o que você vê nas imagens tem prioridade):\n${analise}` : '',
     'Faça as 6 etapas e responda no JSON combinado.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   content.push({ type: 'text', text: pedido });
 
   let r;
