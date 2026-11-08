@@ -161,6 +161,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
       <div class="fields">
         <div class="field"><label class="label" for="bEstilo">Estilo</label><select id="bEstilo"><option value="ref">Igual às referências</option><option value="anime">Anime</option><option value="desenho">Desenho animado</option><option value="3d">Animação 3D</option><option value="realista">Realista</option></select></div>
         <div class="field"><label class="label" for="bCriativ">Criatividade da IA</label><select id="bCriativ"><option value="fiel">Seguir à risca</option><option value="equilibrado" selected>Equilibrado</option><option value="livre">Criatividade livre</option></select></div>
+        <div class="field"><label class="label" for="bFormato">Imagem final</label><select id="bFormato"><option value="imagem">Character design (imagem do personagem)</option><option value="prancha">Prancha / folha (frente, lado, costas, expressões)</option></select></div>
         <div class="field"><label class="label" for="bIdioma">Idioma do prompt final</label><select id="bIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
       </div>
     </section>
@@ -387,23 +388,23 @@ const PH = {
 function setModo(m){
   modo = m === "ia" ? "ia" : "descrevo";
   document.querySelectorAll(".modo").forEach(b => b.setAttribute("aria-checked", String(b.dataset.modo === modo)));
-  $("#pedidoLabel").textContent = modo === "ia" ? "Pistas para a IA (opcional)" : "Escreva tudo aqui: obra, universo, personagem, papel, personalidade, uso, o que é obrigatório";
+  $("#pedidoLabel").textContent = modo === "ia" ? "Pistas para o app (opcional)" : "Escreva tudo aqui: obra, universo, personagem, papel, idade, tipo físico, personalidade, uso, o que é obrigatório";
   $("#pedidoLivre").placeholder = PH[modo];
   salvaPedido();
 }
 document.querySelectorAll(".modo").forEach(b => b.onclick = () => { setModo(b.dataset.modo); if(modo === "ia" && $("#bCriativ").value === "equilibrado"){ $("#bCriativ").value = "livre"; salvaPedido(); } });
-function salvaPedido(){ store.set("reverso-pedido", { modo, texto:$("#pedidoLivre").value, estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value }); }
+function salvaPedido(){ store.set("reverso-pedido", { modo, formato:$("#bFormato").value, texto:$("#pedidoLivre").value, estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value, formato:$("#bFormato").value }); }
 (() => {
   let p = store.get("reverso-pedido", null);
   if(!p){ // traz o briefing antigo, se houver
     const b = store.get("reverso-briefing", null);
     if(b){ const L = []; [["Obra", b.bObra], ["Sobre a obra", b.bObraDesc], ["Tema", b.bTema], ["Papel", b.bPapel], ["Personalidade", b.bPers], ["Uso", b.bUso], ["Obrigatório", b.bObrig], ["Referências", b.bRefDesc]].forEach(([k, x]) => { if(x) L.push(`${k}: ${x}`); }); p = { modo:"descrevo", texto:L.join("\n"), estilo:b.bEstilo, criatividade:b.bCriativ, idioma:b.bIdioma }; }
   }
-  if(p){ $("#pedidoLivre").value = p.texto || ""; ["estilo","criatividade","idioma"].forEach((k, i) => { if(p[k]) $(["#bEstilo","#bCriativ","#bIdioma"][i]).value = p[k]; }); }
+  if(p){ if(p.formato) $("#bFormato").value = p.formato; $("#pedidoLivre").value = p.texto || ""; ["estilo","criatividade","idioma"].forEach((k, i) => { if(p[k]) $(["#bEstilo","#bCriativ","#bIdioma"][i]).value = p[k]; }); }
   setModo(p && p.modo);
 })();
 ["#pedidoLivre"].forEach(id => $(id).addEventListener("input", salvaPedido));
-["#bEstilo","#bCriativ","#bIdioma"].forEach(id => $(id).addEventListener("change", salvaPedido));
+["#bEstilo","#bCriativ","#bIdioma","#bFormato"].forEach(id => $(id).addEventListener("change", salvaPedido));
 const v = () => ({ modo, texto:$("#pedidoLivre").value.trim(), estilo:$("#bEstilo").value, criatividade:$("#bCriativ").value, idioma:$("#bIdioma").value });
 const nomeObra = c => (c.dados && c.dados.titulo && c.dados.titulo.obra) || (c.dados && c.dados.universo_proposto && c.dados.universo_proposto.nome) || c.briefing.obra || "Sem obra";
 const nomePers = c => (c.dados && c.dados.titulo && c.dados.titulo.personagem) || c.briefing.tema || (c.dados && c.dados.escolhido && c.dados.escolhido.conceito) || "Personagem";
@@ -544,7 +545,7 @@ Aponte fragilidades e proponha correções concretas. Não afirme que a original
 ETAPA 6 — PROMPT FINAL DE IMAGEM
 ${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Escolha a proposta mais adequada ao briefing e entregue um prompt autossuficiente"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
 Descreva: personagem, silhueta, proporções, rosto, cabelo, vestuário, materiais, acessórios, pose, expressão, cores, iluminação, acabamento, fundo e composição.
-Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas.
+${b.formato === "prancha" ? "Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas." : "A imagem final é UM character design do personagem: corpo inteiro, em pose três-quartos que mostre a personalidade, fundo neutro liso, sem vistas múltiplas e sem textos."}
 Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.
 
 IMPORTANTE: o prompt final será usado em outro chat, SEM as imagens de referência anexadas. Por isso:
@@ -599,7 +600,7 @@ $("#ia").onclick = async () => {
     const ped = MotorReverso.lerPedido(b.texto), obra = ped.obra || (b.modo === "ia" ? "Universos criados pelo app" : "Geral");
     const perfil = MotorReverso.aprender(obra, MotorReverso.juntar(ms));
     status2("Gerando as 6 etapas…");
-    const dados = MotorReverso.gerar(perfil, ped, { modo:b.modo, criatividade:b.criatividade, idioma:b.idioma, estilo:b.estilo, obra, semente:String(Date.now()) });
+    const dados = MotorReverso.gerar(perfil, ped, { modo:b.modo, criatividade:b.criatividade, idioma:b.idioma, estilo:b.estilo, formato:b.formato, obra, semente:String(Date.now()) });
     ultimo = { id: Date.now(), data: new Date().toISOString(), briefing: { ...b, obra }, dados };
     mostra(ultimo, true); mostraPerfis();
     status2(`Pronto: ${sel.length} referências medidas${perfil.analises > 1 ? `, somadas ao estilo aprendido de "${obra}" (${perfil.n} referências em ${perfil.analises} análises)` : ""}. Clique de novo para outras 3 opções de conceito.`, "ok");
@@ -639,7 +640,20 @@ function mostra(c, novo){
   out.append(el("div", { className:"row" }, bc, bd, bs));
   const u = d.universo_proposto;
   if(u && u.nome){ const dl = el("dl"); [["Premissa", u.premissa], ["Mundo", u.mundo], ["Tom", u.tom]].forEach(([a, x]) => { if(x) dl.append(el("dt", { textContent:a }), el("dd", { textContent:S(x) })); }); out.append(etapa("✦", `Universo criado pelo app: ${S(u.nome)}`, el("div", { className:"conceito" }, dl))); }
-  if(arr(d.perguntas).length) out.append(etapa("?", "Perguntas para melhorar", el("p", { className:"note", textContent:"O resultado saiu assim mesmo, mas responder isto no seu pedido melhora os conceitos:" }), lista(d.perguntas)));
+  if(arr(d.perguntas).length && novo){
+    const box = etapa("?", "Responda para melhorar", el("p", { className:"note", textContent:"Escreva as respostas aqui. Elas entram no seu pedido e o motor gera de novo." }));
+    const ins = arr(d.perguntas).map((q, k) => { const id = "resp" + k, inp = el("input", { type:"text", id, placeholder:"Sua resposta", autocomplete:"off" }); box.append(el("div", { className:"field" }, el("label", { className:"label", htmlFor:id, textContent:S(q) }), inp)); return [q, inp]; });
+    const go = el("button", { type:"button", className:"btn pri", textContent:"Responder e gerar de novo" });
+    go.onclick = () => {
+      const rot = { papel:"Papel", uso:"Uso", idade:"Idade e tipo físico" }, add = ins.filter(([, inp]) => inp.value.trim()).map(([q, inp]) => {
+        const k = /papel/i.test(q) ? "papel" : /uso/i.test(q) ? "uso" : /idade|físico|fisico/i.test(q) ? "idade" : "";
+        return `${rot[k] || "Resposta"}: ${inp.value.trim()}.`; });
+      if(!add.length){ status2("Escreva pelo menos uma resposta.", "err"); return; }
+      $("#pedidoLivre").value = ($("#pedidoLivre").value.trim() + "\n" + add.join("\n")).trim(); salvaPedido();
+      $("#ia").click();
+    };
+    box.append(el("div", { className:"row" }, go)); out.append(box);
+  }
   const l = d.leitura || {};
   out.append(etapa("01", "Leitura da referência", el("p", { className:"label", textContent:"Observações" }), lista(l.observacoes), el("p", { className:"label", textContent:"Hipóteses" }), lista(l.hipoteses), arr(l.limitacoes).length ? el("p", { className:"label", textContent:"Limitações" }) : null, lista(l.limitacoes)));
   const dec = etapa("02", "Decomposição visual");
@@ -660,7 +674,7 @@ function mostra(c, novo){
   out.append(etapa("05", "Revisão", el("div", { className:"tabela" }, tb), el("p", { className:"label", textContent:"Fragilidades" }), lista(r.fragilidades), el("p", { className:"label", textContent:"Correções" }), lista(r.correcoes)));
   const pf = blocoTexto(`Prompt final · ${S(d.escolhido && d.escolhido.conceito)}`, S(d.prompt_final));
   if(d.estilo_aprendido) out.append(etapa("✎", "Bloco de estilo aprendido (para usar sem anexar imagens)", el("p", { className:"note", textContent:"Cole no começo de qualquer prompt futuro desta obra para manter o mesmo estilo." }), blocoTexto("Bloco de estilo", S(d.estilo_aprendido))));
-  out.append(etapa("06", "Prompt final da prancha", d.escolhido && d.escolhido.motivo ? el("p", { className:"note", textContent:S(d.escolhido.motivo) }) : null, pf));
+  out.append(etapa("06", d.formato === "prancha" ? "Prompt final da prancha" : "Prompt final do character design", d.escolhido && d.escolhido.motivo ? el("p", { className:"note", textContent:S(d.escolhido.motivo) }) : null, pf));
   arr(d.prompts_outros).forEach(p => out.append(blocoTexto(`Prompt · ${S(p.personagem)}`, S(p.prompt))));
   if(d.aviso_originalidade) out.append(el("p", { className:"note", textContent:"Aviso: " + S(d.aviso_originalidade) }));
   out.scrollIntoView({ behavior:"smooth", block:"start" });
