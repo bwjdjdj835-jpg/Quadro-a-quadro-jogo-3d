@@ -6,6 +6,7 @@ Extrator de quadros para character design: tira do vídeo as melhores imagens de
 - Três modos: **Referências nítidas**, **Poses em sequência** e **Detalhes e cores**.
 - Dá o nome do personagem a cada imagem e organiza o ZIP em pastas por personagem.
 - **Baixar ZIP com TODAS as fotos** leva tudo o que foi extraído, sem depender de marcação. O outro botão leva só as marcadas.
+- **Limpar tudo e abrir outro vídeo** (passo 01) apaga o vídeo, os quadros e o resultado do passo 04, mantendo o universo e o personagem digitados.
 - Tudo roda no navegador: o vídeo não é enviado para servidor nenhum.
 
 ## Criar o personagem (passo 04)

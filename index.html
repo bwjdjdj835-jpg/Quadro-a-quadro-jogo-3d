@@ -106,6 +106,8 @@ pre.prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);f
 .viewer button.btn{background:#2a2622;color:#f1ece6;border-color:#5a524b}
 .viewer button.btn.pri{background:#e8774a;border-color:#e8774a;color:#1d0f08}
 .sharebox{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.btn.limpar{color:var(--bad);border-color:var(--bad)}
+#limparRow{margin-top:8px}
 .sharebox.destaque{border:2px solid var(--accent);border-radius:12px;padding:14px}
 details.sharebox summary{cursor:pointer}
 details.sharebox:not([open]){gap:0}
@@ -153,6 +155,10 @@ details.sharebox:not([open]){gap:0}
         <button class="btn sm" id="capBtn" title="Atalho: tecla C">Capturar este quadro</button>
         <button class="btn sm" id="setStart">Início aqui</button>
         <button class="btn sm" id="setEnd">Fim aqui</button>
+      </div>
+      <div class="row" id="limparRow" hidden>
+        <button class="btn sm limpar" type="button" id="limparTudo">Limpar tudo e abrir outro vídeo</button>
+        <span class="note">Apaga o vídeo, os quadros extraídos e o resultado do passo 04. O universo e o personagem que você digitou continuam.</span>
       </div>
     </section>
 
@@ -361,7 +367,7 @@ function openFile(f){
   curFile = f; triedData = false;
   if(vid.src && vid.src.startsWith("blob:")) URL.revokeObjectURL(vid.src);
   vid.hidden = false; $("#vidMeta").hidden = false;
-  vid.src = URL.createObjectURL(f); vid.load();
+  vid.src = URL.createObjectURL(f); vid.load(); mostraLimpar();
   status(`Carregando o vídeo… (${fileInfo(f)})`);
   clearTimeout(openFile.to);
   openFile.to = setTimeout(()=>{ if(!vid.videoWidth) status(`O vídeo ainda não abriu depois de 20 s (${fileInfo(curFile)}). Se for muito grande, corte um trecho menor no celular, ou abra este app no Chrome.`,"err"); }, 20000);
@@ -479,6 +485,29 @@ $("#go").addEventListener("click", async () => {
   }finally{ running=false; $("#go").disabled=false; $("#stop").hidden=true; setTimeout(()=>$("#bar").hidden=true,800); }
 });
 $("#stop").addEventListener("click", ()=>{ cancel = true; });
+
+/* ---------- limpar tudo para começar com outro vídeo ---------- */
+function mostraLimpar(){ $("#limparRow").hidden = !(curFile || frames.length); }
+function limparTudo(){
+  cancel = true; clearTimeout(openFile.to);
+  frames.forEach(f=>URL.revokeObjectURL(f.thumb)); frames.length = 0; nextId = 1;
+  vid.pause(); if(vid.src && vid.src.startsWith("blob:")) URL.revokeObjectURL(vid.src);
+  vid.removeAttribute("src"); vid.load(); vid.hidden = true; $("#vidMeta").hidden = true;
+  curFile = null; triedData = false; $("#file").value = "";
+  $("#t0").value = 0; $("#t1").value = 0; $("#go").disabled = true; $("#est").textContent = "";
+  if(!$("#viewer").hidden) $("#viewer").hidden = true;
+  $("#cout").replaceChildren(); ["#cst","#zst"].forEach(id=>{ $(id).hidden = true; $(id).textContent = ""; });
+  $("#linkBox").hidden = true; $("#bulkLabel").value = "";
+  render(); mostraLimpar();
+  status("Tudo limpo. Escolha outro vídeo.", "ok");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+$("#limparTudo").addEventListener("click", e=>{
+  const b = e.currentTarget;
+  if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Tem certeza? Toque de novo para limpar"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Limpar tudo e abrir outro vídeo"; },4000); return; }
+  b.dataset.armed=""; b.textContent="Limpar tudo e abrir outro vídeo";
+  limparTudo();
+});
 async function captureNow(){
   if(!vid.src || running || !vid.videoWidth) return;
   const f = await grab(vid.currentTime); f.sel = true; frames.push(f); frames.sort((x,y)=>x.t-y.t); detectMoto(); scoreAll(); render();
@@ -501,7 +530,7 @@ function render(){
   const box = $("#sheet"); box.replaceChildren();
   const nSel = frames.filter(f=>f.sel).length;
   $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`;
-  updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
+  mostraLimpar(); updZipAll(); $("#zip").disabled = !nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : "";
   if(!frames.length){ box.append(Object.assign(document.createElement("div"),{className:"empty",textContent:"Os quadros aparecem aqui. Abra um vídeo e clique em \"Extrair quadros\", ou use \"Capturar este quadro\" enquanto assiste."})); return; }
   frames.forEach((f,i) => {
     const card = document.createElement("div"); card.className = "frame"+(f.sel?" sel":"");
@@ -525,7 +554,7 @@ function render(){
     fb.append(top); if(badge) fb.append(badge); fb.append(chk, lab); card.append(th, fb); box.append(card);
   });
 }
-function updateCounts(){ const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
+function updateCounts(){ if(typeof mostraLimpar==="function") mostraLimpar(); const nSel = frames.filter(f=>f.sel).length; $("#count").textContent = `${frames.length} quadros · ${nSel} marcados`; updZipAll(); $("#zip").disabled=!nSel; ["shareBtn","sheetBtn","sheetsZipBtn","looseBtn","dirBtn","linkBtn"].forEach(id=>$("#"+id).disabled=!nSel); $("#zipInfo").textContent = nSel ? `${nSel} fotos · ≈ ${(frames.filter(f=>f.sel).reduce((s,f)=>s+f.blob.size,0)/1048576).toFixed(1)} MB` : ""; }
 $("#minSharp").addEventListener("input", e=>{ $("#minSharpV").textContent = e.target.value; render(); });
 $("#selSharp").addEventListener("click", ()=>{ autoSelect(); render(); });
 $("#selAll").addEventListener("click", ()=>{ frames.forEach(f=>f.sel=true); render(); });
