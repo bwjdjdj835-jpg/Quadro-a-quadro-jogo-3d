@@ -4,7 +4,7 @@
    3) GERA as 6 etapas (leitura, decomposição, princípios, 3 conceitos, revisão, prompt final) a partir das medidas e do pedido.
    Limite honesto: o motor mede formas e cores; ele não reconhece objetos, rostos ou roupas como uma IA treinada. */
 (() => {
-const MW = 160; // largura de análise
+const MW = 260; // largura de análise (análise profunda)
 
 /* ---------- utilidades ---------- */
 function hsl(r, g, b){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2; let h=0, s=0;
@@ -27,6 +27,35 @@ function rng(seedStr){ let h = 2166136261; for(const c of seedStr) h = Math.imul
 const pick = (r, a) => a[Math.floor(r() * a.length)];
 const pct = x => Math.round(x * 100);
 const media = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
+
+/* ---------- leitura do modelo da folha: como a referência foi montada ---------- */
+function layout(comps, W, H, N){
+  const corpo = [], cabeca = [], detalhe = [], texto = [], moldura = [];
+  for(const c of comps){
+    const w = c.x1-c.x0+1, h = c.y1-c.y0+1, fill = c.area/(w*h), ar = w/h;
+    if(c.area < N*.0005){ if(h < H*.07) texto.push(c); continue; }
+    if(w*h > N*.03 && fill < .18){ moldura.push(c); continue; }       // caixas/painéis em volta de detalhes
+    if(h > H*.42) corpo.push(c);                                       // poses de corpo inteiro
+    else if(h > H*.11 && ar > .55 && ar < 1.7 && c.area > N*.006) cabeca.push(c); // cabeças / expressões
+    else if(c.area > N*.002 && h >= H*.07) detalhe.push(c);            // detalhes: mãos, objetos, efeitos
+    else if(h < H*.07) texto.push(c);                                  // letras
+  }
+  texto.sort((a, b) => (a.y0+a.y1) - (b.y0+b.y1)); const linhas = [];
+  for(const t of texto){ const cy = (t.y0+t.y1)/2, h = t.y1-t.y0+1;
+    let l = linhas.find(l => Math.abs(l.cy-cy) < Math.max(2, h*.7) && t.x0 - l.x1 < W*.05 && t.x0 > l.x0-3);
+    if(!l){ l = { cy, x0:t.x0, x1:t.x1, y0:t.y0, y1:t.y1, n:0 }; linhas.push(l); }
+    l.n++; l.x1 = Math.max(l.x1, t.x1); l.y0 = Math.min(l.y0, t.y0); l.y1 = Math.max(l.y1, t.y1); }
+  const lt = linhas.filter(l => l.n >= 4);
+  const pos = c => { const cx = ((c.x0+c.x1)/2)/W, cy = ((c.y0+c.y1)/2)/H; return { h: cx < .36 ? "esquerda" : cx > .64 ? "direita" : "centro", v: cy < .36 ? "topo" : cy > .64 ? "baixo" : "meio" }; };
+  const titulo = lt.filter(l => l.y0 < H*.22).sort((a, b) => (b.y1-b.y0)*(b.x1-b.x0) - (a.y1-a.y0)*(a.x1-a.x0))[0];
+  const alt = corpo.map(c => (c.y1-c.y0+1)/H);
+  const conta = (arr, k) => { const o = {}; arr.forEach(c => { const p = pos(c)[k]; o[p] = (o[p]||0) + 1; }); return o; };
+  const maior = corpo.slice().sort((a, b) => (b.y1-b.y0) - (a.y1-a.y0))[0];
+  return { corpos: corpo.length, cabecas: cabeca.length, detalhes: detalhe.length, linhasTexto: lt.length, molduras: moldura.length,
+    titulo: titulo ? pos(titulo).h + "-" + pos(titulo).v : "", turnaround: corpo.length >= 2 && Math.max(...alt) - Math.min(...alt) < .18 ? 1 : 0,
+    maiorCorpo: alt.length ? Math.max(...alt) : 0, posMaior: maior ? pos(maior).h : "",
+    posCabecaH: conta(cabeca, "h"), posCabecaV: conta(cabeca, "v"), posDetalheH: conta(detalhe, "h"), posDetalheV: conta(detalhe, "v"), largura: W/H };
+}
 
 /* ---------- 1) medir uma referência ---------- */
 async function medir(blob){
@@ -60,7 +89,14 @@ async function medir(blob){
   const maxL = Math.max(1, ...larg), suave = larg.map((_, i) => media(larg.slice(Math.max(0,i-1), i+2)));
   let pescoco = -1; const ini = Math.round(fh*.06), fim = Math.round(fh*.32);
   for(let i=ini+1; i<fim; i++) if(suave[i] < suave[i-1] && suave[i] <= suave[i+1] && suave[i] < .75*Math.max(...suave.slice(i, Math.min(fh, i+Math.round(fh*.12))))){ pescoco = i; break; }
-  const cabecas = pescoco > 0 ? Math.max(2, Math.min(10, fh / pescoco)) : null;
+  // proporção medida em TODAS as poses de corpo inteiro da folha (mediana), não só na maior
+  const cabecasDe = c => { const h = c.y1-c.y0+1, lw = new Array(h).fill(0);
+    for(let y=c.y0; y<=c.y1; y++) for(let q=c.x0; q<=c.x1; q++) if(lab[y*W+q] === c.id) lw[y-c.y0]++;
+    const sv = lw.map((_, i) => media(lw.slice(Math.max(0,i-1), i+2))), a0 = Math.round(h*.06), a1 = Math.round(h*.32);
+    for(let i=a0+1; i<a1; i++) if(sv[i] < sv[i-1] && sv[i] <= sv[i+1] && sv[i] < .75*Math.max(...sv.slice(i, Math.min(h, i+Math.round(h*.12))))) return Math.max(2, Math.min(10, h/i));
+    return null; };
+  const corposFolha = grandes.filter(c => (c.y1-c.y0+1) > H*.42), medidasCab = corposFolha.map(cabecasDe).filter(Boolean).sort((a, b) => a-b);
+  const cabecas = medidasCab.length ? medidasCab[medidasCab.length >> 1] : pescoco > 0 ? Math.max(2, Math.min(10, fh / pescoco)) : null;
   const terco = k => media(larg.slice(Math.floor(fh*k/3), Math.floor(fh*(k+1)/3))) / maxL;
   const massa = [terco(0), terco(1), terco(2)];
   // simetria
@@ -87,7 +123,8 @@ async function medir(blob){
   foco.sort((a, b) => b[0]-a[0]); const topo = foco.slice(0, Math.max(1, Math.round(foco.length*.04)));
   const fy = (media(topo.map(t => t[2])) - fig.y0) / fh;
   const mL = nF ? sL/nF : .5;
-  return { fundoLiso, fundo: fb, areaFig: fig.area/N, proporcaoFig: fh/Math.max(1, fw), cabecas, massa, simetria: simN ? sim/simN : .5,
+  const lay = fundoLiso ? layout(comps, W, H, N) : null;
+  return { layout: lay, fundoLiso, fundo: fb, areaFig: fig.area/N, proporcaoFig: fh/Math.max(1, fw), cabecas, massa, simetria: simN ? sim/simN : .5,
     agudos: agudos/tot, retos: retos/tot, curvos: curvos/tot, preenchimento: fig.area/(fw*fh), px,
     valores: [esc/Math.max(1,nF), medv/Math.max(1,nF), cla/Math.max(1,nF)], luz: mL, contraste: nF ? Math.sqrt(Math.max(0, sL2/nF - mL*mL)) : 0,
     saturacao: nF ? sS/nF : 0, quente: sat ? quente/sat : 0, frio: sat ? frio/sat : 0, pctSat: nF ? sat/nF : 0,
@@ -114,7 +151,18 @@ function juntar(ms){
   const fb = [0,1,2].map(i => media(ms.map(m => m.fundo[i]))); p.fundo = fb;
   const allPx = []; ms.forEach(m => { for(let i=0; i<m.px.length; i+=Math.max(1, Math.round(ms.length/20))) allPx.push(m.px[i]); });
   p.paleta = kmeans(allPx, 7).filter(c => c.pct >= .02);
+  p.layout = juntaLayout(ms.map(m => m.layout).filter(Boolean));
   return p;
+}
+function somaDict(a = {}, b = {}){ const o = { ...a }; for(const k in b) o[k] = (o[k]||0) + b[k]; return o; }
+function juntaLayout(ls, base){
+  if(!ls.length) return base || null;
+  const n = ls.length + (base ? base.n : 0), num = ["corpos","cabecas","detalhes","linhasTexto","molduras","turnaround","maiorCorpo","largura"];
+  const o = { n }; num.forEach(k => o[k] = (ls.reduce((s, l) => s + l[k], 0) + (base ? base[k]*base.n : 0)) / n);
+  ["posCabecaH","posCabecaV","posDetalheH","posDetalheV"].forEach(k => o[k] = ls.reduce((s, l) => somaDict(s, l[k]), base ? base[k] : {}));
+  o.titulos = ls.reduce((s, l) => l.titulo ? somaDict(s, { [l.titulo]: 1 }) : s, base ? base.titulos : {});
+  o.posMaior = ls.reduce((s, l) => l.posMaior ? somaDict(s, { [l.posMaior]: 1 }) : s, base ? base.posMaior : {});
+  return o;
 }
 function aprender(obra, novo){ // média ponderada pelo número de referências: o perfil melhora a cada análise
   const chave = "reverso-motor-perfis", todos = JSON.parse(localStorage.getItem(chave) || "{}"), velho = todos[obra];
@@ -128,6 +176,9 @@ function aprender(obra, novo){ // média ponderada pelo número de referências:
     p.massa = novo.massa.map((x, i) => w(velho.massa[i], x)); p.valores = novo.valores.map((x, i) => w(velho.valores[i], x));
     p.fundoLiso = w(velho.fundoLiso, novo.fundoLiso); p.fundo = novo.fundo.map((x, i) => w(velho.fundo[i], x));
     p.paleta = kmeans([...velho.paleta, ...novo.paleta].flatMap(c => Array(Math.max(1, Math.round(c.pct*50))).fill(c.rgb)), 7).filter(c => c.pct >= .02);
+    p.layout = novo.layout && velho.layout ? (() => { const b = velho.layout, a = novo.layout, n = a.n + b.n, o = { n };
+      ["corpos","cabecas","detalhes","linhasTexto","molduras","turnaround","maiorCorpo","largura"].forEach(k => o[k] = (a[k]*a.n + b[k]*b.n)/n);
+      ["posCabecaH","posCabecaV","posDetalheH","posDetalheV","titulos","posMaior"].forEach(k => o[k] = somaDict(a[k], b[k])); return o; })() : (novo.layout || velho.layout);
     p.analises = (velho.analises || 1) + 1;
   } else p.analises = 1;
   todos[obra] = p; try{ localStorage.setItem(chave, JSON.stringify(todos)); }catch{}
@@ -258,7 +309,8 @@ function gerar(p, ped, opt){
       `Valores: ${T.valores}; ${T.chave}; ${T.contraste}; ${T.sep}.`,
       `Cor: ${T.sat}, ${T.temp}; ${T.acentos}. Paleta medida: ${T.paleta}.`,
       `Acabamento: ${T.linha}; ${T.detalhe}; ${T.sombra}.`,
-      `Ponto de maior contraste e cor (foco provável): ${T.foco}.`
+      `Ponto de maior contraste e cor (foco provável): ${T.foco}.`,
+      ...(p.layout ? [`Montagem da folha (média de ${p.layout.n} folhas): ${p.layout.corpos.toFixed(1)} poses de corpo inteiro, ${p.layout.cabecas.toFixed(1)} cabeças/expressões, ${p.layout.detalhes.toFixed(1)} detalhes, ${p.layout.linhasTexto.toFixed(1)} linhas de texto${p.layout.molduras >= .5 ? `, ${p.layout.molduras.toFixed(1)} quadros com moldura` : ""}${p.layout.turnaround > .3 ? "; turnaround presente" : ""}.`] : [])
     ],
     hipoteses: [
       p.plano > .45 && p.contorno > .4 ? "Hipótese: arte digital 2D com line art e cel-shading, típica de anime ou desenho." : p.plano < .3 ? "Hipótese: pintura digital ou render com gradientes, mais próxima de ilustração semi-realista ou 3D." : "Hipótese: estilo híbrido, com áreas chapadas e transições suaves.",
@@ -351,7 +403,40 @@ function gerar(p, ped, opt){
   // ETAPA 6: prompts autossuficientes (sem imagens anexadas)
   const estiloEN = `VISUAL STYLE: ${p.plano > .45 ? "clean 2D digital art with cel-shading in 1-2 shadow tones" : p.plano > .3 ? "digital illustration mixing flat color areas and soft gradients" : "painterly rendering with soft gradients and visible texture"}; ${p.contorno > .5 ? "consistent dark outlines (line art)" : p.contorno > .3 ? "thin outlines on part of the forms" : "no dark outlines, edges defined by color"}; ${p.bordas > .09 ? "rich interior detail" : p.bordas > .045 ? "moderate interior detail" : "minimal interior detail, clean shapes"}; ${p.luz > .6 ? "high-key, light overall values" : p.luz < .35 ? "low-key, dark overall values" : "mid-key values"} with ${p.contraste > .26 ? "strong" : p.contraste > .17 ? "medium" : "soft"} contrast; ${p.saturacao > .5 ? "saturated, vivid colors" : p.saturacao > .25 ? "moderately saturated colors" : "desaturated, almost neutral colors"} with ${p.quente > p.frio + .15 ? "warm" : p.frio > p.quente + .15 ? "cool" : "balanced"} dominance and ${p.pctSat < .2 ? "small, saturated accent colors" : "color spread across the figure"}; palette of ${paletaBase.slice(0, 5).map(c => corNome(...c.rgb, true)).join(", ")}; ${p.cabecas ? `proportions around ${p.cabecas.toFixed(1)} heads tall` : "stylized proportions"}; ${p.agudos > .3 ? "angular shape language" : p.curvos > .5 ? "rounded shape language" : p.retos > .55 ? "blocky rectangular shape language" : "mixed shape language"}.`;
   const estiloPT = `ESTILO VISUAL: ${T.sombra}; ${T.linha}; ${T.detalhe}; ${T.chave} com ${T.contraste}; ${T.sat}, ${T.temp}, ${T.acentos}; paleta de ${paletaBase.slice(0, 5).map(c => corNome(...c.rgb)).join(", ")}; ${p.cabecas ? `proporções de cerca de ${p.cabecas.toFixed(1)} cabeças` : "proporções estilizadas"}; linguagem de formas ${T.formas.split(":")[0]}.`;
-  const prancha = opt.formato === "prancha"
+  // modelo da folha (como as referências foram montadas)
+  const Ly = p.layout, moda = o => { const e = Object.entries(o || {}).sort((a, b) => b[1]-a[1])[0]; return e ? e[0] : ""; };
+  const lugar = { esquerda:["à esquerda","on the left"], direita:["à direita","on the right"], centro:["no centro","in the center"], topo:["em cima","at the top"], baixo:["embaixo","at the bottom"], meio:["no meio","in the middle"] };
+  const LG = (k, i) => (lugar[k] || ["", ""])[i];
+  const modelo = (() => {
+    if(!Ly || Ly.n < 1) return null;
+    const el = [], tit = moda(Ly.titulos), [th, tv] = tit.split("-"), nCab = Math.round(Ly.cabecas), nDet = Math.round(Ly.detalhes), nCorp = Math.max(1, Math.round(Ly.corpos));
+    const cabH = moda(Ly.posCabecaH), cabV = moda(Ly.posCabecaV), detV = moda(Ly.posDetalheV), detH = moda(Ly.posDetalheH);
+    if(tit && Ly.linhasTexto >= 1) el.push({ pt:`Título com o nome do personagem em letras grandes ${LG(tv,0)} ${LG(th,0)}, com um subtítulo (epíteto) logo abaixo`, en:`title with the character's name in large letters ${LG(tv,1)} ${LG(th,1)}, with a short epithet right below` });
+    if(Ly.maiorCorpo > .55) el.push({ pt:`uma pose principal grande de corpo inteiro ${LG(moda(Ly.posMaior),0)}, ocupando quase toda a altura`, en:`one large main full-body pose ${LG(moda(Ly.posMaior),1)}, taking almost the full height` });
+    if(Ly.turnaround > .3 || nCorp >= 2) el.push({ pt:`turnaround menor: vistas de frente e de costas${nCorp >= 3 ? " (e de lado)" : ""} lado a lado, com a mesma altura`, en:`smaller turnaround: front and back${nCorp >= 3 ? " (and side)" : ""} views side by side at the same height` });
+    if(nCab >= 2) el.push({ pt:`${nCab} cabeças com expressões diferentes ${cabV === "meio" || !cabV ? "" : LG(cabV,0)} ${LG(cabH,0)}, cada uma com um rótulo curto`, en:`${nCab} heads with different facial expressions ${cabV === "meio" || !cabV ? "" : LG(cabV,1)} ${LG(cabH,1)}, each with a short label` });
+    if(nDet >= 2) el.push({ pt:`${nDet} detalhes em close (mãos, acessórios, efeito do poder) ${LG(detV,0)} ${detH && detH !== "centro" ? LG(detH,0) : ""}${Ly.molduras >= .5 ? ", dentro de quadros com moldura" : ""}`, en:`${nDet} close-up details (hands, accessories, power effect) ${LG(detV,1)} ${detH && detH !== "centro" ? LG(detH,1) : ""}${Ly.molduras >= .5 ? ", inside framed boxes" : ""}` });
+    if(Ly.linhasTexto >= 3) el.push({ pt:`anotações curtas escritas ao lado dos elementos (cerca de ${Math.round(Ly.linhasTexto)} linhas de texto por folha)`, en:`short written notes next to the elements (about ${Math.round(Ly.linhasTexto)} lines of text per sheet)` });
+    const fundo = corNome(...p.fundo), fundoEn = corNome(...p.fundo, true), hz = Ly.largura > 1.4;
+    return { el, fundo, fundoEn, hz,
+      pt: `Folha de modelo (model sheet) ${hz ? "horizontal 16:9" : "vertical"}, fundo liso ${fundo}, com: ${el.map(e => e.pt).join("; ")}. Espaço claro entre os elementos.`,
+      en: `Character model sheet, ${hz ? "horizontal 16:9" : "vertical"} layout on a plain ${fundoEn} background, containing: ${el.map(e => e.en).join("; ")}. Clear spacing between all elements.` };
+  })();
+  const nomeLivre = ((ped.texto || "").match(/nome\s*[:\-]\s*([^\n,.;]+)/i) || [])[1];
+  const anotacoes = (() => {
+    const c0 = conceitos[0], nome = (nomeLivre || (ia ? c0.nome.split(" (")[0] : "NOME")).trim().toUpperCase();
+    const epiteto = ia ? `${c0.nome.includes("(") ? c0.nome.split("(")[1].replace(")", "") : ""}` : ped.ideia ? (ped.ideia.match(/^(uma?\s+)?([^,;]+?)( de \d|,|;|$)/i) || [])[2] || "" : "";
+    const pers = (ped.personalidade || "").split(", ").filter(Boolean);
+    const exprs = [...pers.slice(0, 2).map(x => ({ "fria":"Olhar frio", "frio":"Olhar frio", "irônica":"Sorriso irônico", "irônico":"Sorriso irônico", "ironica":"Sorriso irônico", "alegre":"Gargalhada", "séria":"Seriedade", "sério":"Seriedade", "tímida":"Timidez", "tímido":"Timidez", "arrogante":"Desdém", "corajosa":"Determinação", "corajoso":"Determinação", "calma":"Serenidade", "calmo":"Serenidade", "explosiva":"Raiva", "explosivo":"Raiva", "misteriosa":"Olhar misterioso", "misterioso":"Olhar misterioso", "gentil":"Sorriso gentil", "cruel":"Sorriso cruel" }[x] || x[0].toUpperCase() + x.slice(1))), "Concentração", "Surpresa", "Raiva contida", "Alegria", "Cansaço"].slice(0, Math.max(3, Math.round((Ly && Ly.cabecas) || 3)));
+    const det = [ped.obrigatorias ? ped.obrigatorias.split(";")[0] : null, ped.poder ? "Efeito do poder" : "Mão em ação", "Acessório principal", "Detalhe da roupa"].filter(Boolean).slice(0, Math.max(2, Math.round((Ly && Ly.detalhes) || 3)));
+    return { titulo: nome, epiteto: epiteto ? epiteto[0].toUpperCase() + epiteto.slice(1) : "",
+      notas: [ped.idade ? `${ped.idade} anos` : null, ped.papel ? `Papel: ${ped.papel}` : null, pers.length ? `Personalidade: ${pers.join(", ")}` : null, ped.poder ? `Poder: ${ped.poder.replace(/^(o\s+)?poder\s*(é|e|de|:)?\s*/i, "")}` : null, ped.aparencia || null, ped.obrigatorias ? `Marca: ${ped.obrigatorias}` : null].filter(Boolean),
+      expressoes: exprs, detalhes: det };
+  })();
+  const anotTxt = (en) => `${en ? "Written on the sheet (keep the text short and legible)" : "Escrito na folha (texto curto e legível)"}: ${en ? "title" : "título"} "${anotacoes.titulo}"${anotacoes.epiteto ? `, ${en ? "epithet" : "epíteto"} "${anotacoes.epiteto}"` : ""}; ${en ? "expression labels" : "rótulos das expressões"}: ${anotacoes.expressoes.map(x => `"${x}"`).join(", ")}; ${en ? "detail labels" : "rótulos dos detalhes"}: ${anotacoes.detalhes.map(x => `"${x}"`).join(", ")}${anotacoes.notas.length ? `; ${en ? "notes" : "notas"}: ${anotacoes.notas.map(x => `"${x}"`).join(", ")}` : ""}.`;
+  const prancha = opt.formato !== "imagem" && opt.formato !== "prancha" && modelo && modelo.el.length >= 2
+    ? (en ? `${modelo.en} Same character in every element, with consistent proportions, outfit and colors. ${anotTxt(true)} No logos, no UI elements, no watermarks.` : `${modelo.pt} O mesmo personagem em todos os elementos, com proporções, roupa e cores consistentes. ${anotTxt(false)} Sem logotipos, interfaces ou marcas d'água.`)
+    : opt.formato === "prancha" || (opt.formato !== "imagem")
     ? (en ? "Character sheet on a plain neutral background with clear spacing between views: front, side and back views with consistent proportions and outfit; three facial expressions; close-up details of accessories. No text, no logos, no UI elements, no watermarks." : "Prancha de personagem em fundo neutro liso com espaçamento claro entre as vistas: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios em close. Sem texto, logotipos, interfaces ou marcas d'água.")
     : (en ? "Single character design illustration: one full-body view of the character in a three-quarter pose that shows their personality, on a plain neutral background, centered with space around the figure. One character only, no multiple views, no text, no logos, no watermarks." : "Uma única ilustração de character design: o personagem de corpo inteiro em pose três-quartos que mostra a personalidade, fundo neutro liso, centralizado com espaço em volta. Um personagem só, sem vistas múltiplas, sem texto, logotipos ou marcas d'água.");
   const promptDe = c => {
@@ -376,7 +461,8 @@ ${prancha}`;
   const outros = ia ? conceitos.filter((_, i) => i !== escolhidoIdx).map(c => ({ personagem: c.nome, prompt: promptDe(c) })) : [];
   const perguntas = [];
   if(!ia){ if(!ped.papel && !/papel\s*:/i.test(ped.texto)) perguntas.push("Qual é o papel do personagem na história (protagonista, vilão, mentor...)?"); if(!ped.uso && !/\buso\s*:/i.test(ped.texto)) perguntas.push("O uso final é jogo, animação, quadrinho ou ilustração?"); if(!ped.idade && !ped.genero && !/idade e tipo f[ií]sico\s*:/i.test(ped.texto)) perguntas.push("Qual a idade e o tipo físico do personagem?"); }
-  return { formato: opt.formato === "prancha" ? "prancha" : "imagem", titulo: { obra: ia ? universo.nome : (ped.obra || opt.obra || "Sem obra"), personagem: conceitos[escolhidoIdx].nome },
+  return { formato: opt.formato === "imagem" ? "imagem" : opt.formato === "prancha" || !(modelo && modelo.el.length >= 2) ? "prancha" : "modelo",
+    modelo_da_folha: modelo ? { descricao: modelo.pt, elementos: modelo.el.map(e => e.pt), medido_em: Ly.n } : null, anotacoes, titulo: { obra: ia ? universo.nome : (ped.obra || opt.obra || "Sem obra"), personagem: conceitos[escolhidoIdx].nome },
     universo_proposto: ia ? { nome: universo.nome, premissa: universo.premissa, mundo: universo.mundo, tom: universo.tom } : { nome:"", premissa:"", mundo:"", tom:"" },
     perguntas: perguntas.slice(0, 3), leitura, decomposicao, principios,
     conceitos: conceitos.map(({ _en, ...c }) => c), revisao, escolhido,
