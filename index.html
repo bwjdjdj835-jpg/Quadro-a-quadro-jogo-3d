@@ -248,6 +248,16 @@ details.sharebox:not([open]){gap:0}
       </div>
     </div>
 
+    <div class="opt">
+      <span class="label">4. Capa e sinopse (opcional)</span>
+      <label class="chk"><input type="checkbox" id="cSinopse"> Sinopse da obra: título, frase de efeito e resumo da história</label>
+      <label class="chk"><input type="checkbox" id="cCapa"> Capa: prompt para o Gemini gerar a capa do filme, série ou anime</label>
+      <div class="fields" id="capaCampos">
+        <div class="field"><label class="label" for="cTitulo">Título da obra (opcional)</label><input type="text" id="cTitulo" placeholder="Deixe vazio para a IA sugerir" autocomplete="off"></div>
+        <div class="field"><label class="label" for="cCapaFmt">Formato da capa</label><select id="cCapaFmt"><option value="poster">Pôster de filme (vertical 2:3)</option><option value="streaming">Capa de série ou anime para streaming (horizontal 16:9)</option><option value="manga">Capa de mangá ou livro (vertical)</option></select></div>
+      </div>
+    </div>
+
     <div class="fields">
       <div class="field"><label class="label" for="uniNome" id="uniLabel">Universo do anime</label><input type="text" id="uniNome" list="uniNames" placeholder="Ex.: nome do seu universo" autocomplete="off"><datalist id="uniNames"></datalist></div>
       <div class="field"><label class="label" for="perNome">Nome do personagem (opcional)</label><input type="text" id="perNome" placeholder="Deixe vazio para a IA sugerir" autocomplete="off"></div>
@@ -851,6 +861,16 @@ document.querySelectorAll("#estiloBox .preset").forEach(b=>b.addEventListener("c
 document.querySelectorAll("#saidaBox .preset").forEach(b=>b.addEventListener("click",()=>{ cSaida=b.dataset.saida; cPress("#saidaBox","saida",cSaida); cUpdate(); }));
 try{ const t=localStorage.getItem("cTexto"); if(t) $("#cTexto").value=t; }catch{}
 $("#cTexto").addEventListener("input",()=>{ try{ localStorage.setItem("cTexto",$("#cTexto").value.slice(0,3000)); }catch{} });
+const CAPA_FMT = {
+  poster: { pt:"pôster de filme vertical, proporção 2:3", en:"vertical movie poster, 2:3 aspect ratio" },
+  streaming: { pt:"capa horizontal de série ou anime para streaming, proporção 16:9", en:"horizontal streaming key art for a series or anime, 16:9 aspect ratio" },
+  manga: { pt:"capa vertical de mangá ou livro, com espaço para o título no topo", en:"vertical manga or book cover, title space at the top" }
+};
+function estTxt(l){ if(cModo==="texto" && cEstilo==="video") return l==="pt" ? "no estilo que combinar melhor com a descrição" : "in the art style that best fits the description"; return ESTILOS[cEstilo][l]; }
+function cExtras(){ return { sinopse:$("#cSinopse").checked, capa:$("#cCapa").checked, titulo:$("#cTitulo").value.trim(), capaFmt:$("#cCapaFmt").value }; }
+function capaUpd(){ $("#capaCampos").hidden = !($("#cSinopse").checked || $("#cCapa").checked); try{ localStorage.setItem("cExtras", JSON.stringify(cExtras())); }catch{} }
+try{ const x=JSON.parse(localStorage.getItem("cExtras")||"{}"); $("#cSinopse").checked=!!x.sinopse; $("#cCapa").checked=!!x.capa; if(x.titulo) $("#cTitulo").value=x.titulo; if(CAPA_FMT[x.capaFmt]) $("#cCapaFmt").value=x.capaFmt; }catch{}
+["#cSinopse","#cCapa","#cCapaFmt"].forEach(id=>$(id).addEventListener("change",capaUpd)); $("#cTitulo").addEventListener("input",capaUpd); capaUpd();
 $("#cIdioma").addEventListener("change",()=>{ try{ localStorage.setItem("cIdioma",$("#cIdioma").value); }catch{} });
 
 function cFrames(){ const sel=frames.filter(f=>f.sel); if(sel.length<=CAI_MAX) return sel; const out=[]; for(let i=0;i<CAI_MAX;i++) out.push(sel[Math.round(i*(sel.length-1)/(CAI_MAX-1))]); return out; }
@@ -876,7 +896,7 @@ function cPedido(){
     L.push("Você é diretor de arte e character designer sênior. As imagens anexadas são quadros de um filme ou série que eu gravei (pode ser live-action ou animado). Primeiro descubra do que se trata: se é realista ou animado (anime, desenho, 3D), gênero, época, ambientação, fotografia, paleta e figurino. Depois crie um personagem ORIGINAL de um universo fictício novo, inspirado nesse visual.");
     L.push("Não recrie personagens da obra, não copie o rosto de nenhum ator e não identifique pessoas pelo rosto.");
   }
-  L.push("", `ESTILO DO PERSONAGEM: ${ESTILOS[cEstilo].nome}. Desenhe e descreva o personagem ${ESTILOS[cEstilo].pt}.`, "");
+  L.push("", `ESTILO DO PERSONAGEM: ${ESTILOS[cEstilo].nome}. Desenhe e descreva o personagem ${estTxt("pt")}.`, "");
   if(v.uni || v.desc){ L.push(`UNIVERSO${v.uni?`: ${v.uni}`:""}`); if(v.desc) L.push(v.desc); L.push(""); }
   if(v.nome || v.funcao || v.notas){ L.push("PERSONAGEM"); if(v.nome) L.push(`Nome: ${v.nome}`); if(v.funcao) L.push(`Papel: ${v.funcao}`); if(v.notas) L.push(`Pedidos meus: ${v.notas}`); L.push(""); }
   const cont = {}; const names = [];
@@ -899,8 +919,23 @@ function cPedido(){
       "b) folha com as 6 poses;",
       "c) folha com as 6 expressões;",
       "d) ilustração do personagem em cena.",
-      `Em cada prompt deixe claro o estilo: ${pt?ESTILOS[cEstilo].pt:ESTILOS[cEstilo].en}.`,
+      `Em cada prompt deixe claro o estilo: ${pt?estTxt("pt"):estTxt("en")}.`,
       "Em cada prompt peça para manter exatamente o mesmo personagem.", "");
+  }
+  const x=cExtras(), tituloTxt = x.titulo ? `"${x.titulo}"` : "um título original que você sugerir";
+  if(x.sinopse){
+    L.push("ENTREGUE A SINOPSE DA OBRA, em português:",
+      `- Título: ${x.titulo ? `use ${tituloTxt}` : "sugira um título original"};`,
+      "- Frase de efeito (logline) de uma linha;",
+      "- Sinopse de um parágrafo (5 a 7 frases), apresentando o personagem, o mundo e o conflito, sem contar o final;",
+      "- Gênero e público.", "");
+  }
+  if(x.capa){
+    L.push(`ENTREGUE 1 PROMPT DE CAPA para gerar no Gemini, ${pt?"em português":"em inglês"}, completo e autossuficiente:`,
+      `- Formato: ${pt?CAPA_FMT[x.capaFmt].pt:CAPA_FMT[x.capaFmt].en};`,
+      `- Estilo: ${pt?estTxt("pt"):estTxt("en")};`,
+      "- O personagem em destaque, numa pose marcante que mostre quem ele é, com o cenário do universo ao fundo e a paleta de cores definida;",
+      `- O título ${tituloTxt} escrito de forma legível, com tipografia que combine com o gênero, e nenhum outro texto na imagem.`, "");
   }
   L.push(cModo==="texto" ? "Seja concreto e visual: formas, proporções, materiais e cores." : "Seja concreto e visual: formas, proporções, materiais e cores. Se algo não der para ver nos quadros, diga em vez de inventar.");
   return L.join("\n");
@@ -908,8 +943,8 @@ function cPedido(){
 
 /* mostrar resultados (tudo montado com textContent, nada de HTML vindo da IA) */
 function mk(tag, props, ...kids){ const e=Object.assign(document.createElement(tag), props||{}); e.append(...kids); return e; }
-const ROT = { tipo_de_video:"Tipo de vídeo", realista_ou_animado:"Realista ou animado", estilo_do_personagem:"Estilo do personagem", genero:"Gênero", epoca_ambientacao:"Época e lugar", estetica:"Estética", paleta:"Paleta", nome:"Nome", papel:"Papel", idade_aparente:"Idade aparente", silhueta_proporcoes:"Silhueta e proporções", rosto:"Rosto", cabelo:"Cabelo", roupas:"Roupas", acessorios:"Acessórios", cores:"Cores", personalidade_visual:"Personalidade visual" };
-const PROMPT_NOMES = { folha_de_personagem:"Prompt · folha de personagem", poses:"Prompt · folha de poses", expressoes:"Prompt · folha de expressões", cena:"Prompt · cena" };
+const ROT = { titulo:"Título", logline:"Frase de efeito", sinopse:"Sinopse", genero_publico:"Gênero e público", tipo_de_video:"Tipo de vídeo", realista_ou_animado:"Realista ou animado", estilo_do_personagem:"Estilo do personagem", genero:"Gênero", epoca_ambientacao:"Época e lugar", estetica:"Estética", paleta:"Paleta", nome:"Nome", papel:"Papel", idade_aparente:"Idade aparente", silhueta_proporcoes:"Silhueta e proporções", rosto:"Rosto", cabelo:"Cabelo", roupas:"Roupas", acessorios:"Acessórios", cores:"Cores", personalidade_visual:"Personalidade visual" };
+const PROMPT_NOMES = { capa:"Prompt · capa", folha_de_personagem:"Prompt · folha de personagem", poses:"Prompt · folha de poses", expressoes:"Prompt · folha de expressões", cena:"Prompt · cena" };
 function rot(k){ return ROT[k] || String(k).replace(/_/g," ").replace(/^./,c=>c.toUpperCase()); }
 function valNode(k, v){
   if(Array.isArray(v) && k==="paleta"){
@@ -937,7 +972,7 @@ function fichaTexto(d){
   const L=[];
   const kv=(t,o)=>{ const rows=Object.entries(o||{}).filter(([,v])=>v!==""&&v!=null); if(!rows.length) return; L.push(t.toUpperCase()); rows.forEach(([k,v])=>L.push(`${rot(k)}: ${Array.isArray(v)?v.join("; "):v}`)); L.push(""); };
   const ls=(t,a)=>{ if(!Array.isArray(a)||!a.length) return; L.push(t.toUpperCase()); a.forEach((x,i)=>L.push(`${i+1}. ${x}`)); L.push(""); };
-  kv("Do que se trata o vídeo", d.identificacao); kv("Personagem", d.personagem);
+  kv("Sinopse da obra", d.obra); kv("Do que se trata o vídeo", d.identificacao); kv("Personagem", d.personagem);
   ls("Vistas", d.vistas); ls("Poses", d.poses); ls("Expressões", d.expressoes);
   if(d.referencias_usadas) L.push("QUADROS USADOS", String(d.referencias_usadas), "");
   ls("Para conferir", d.avisos);
@@ -947,19 +982,22 @@ function promptsTexto(d){ const L=["PROMPTS PARA O GEMINI",""]; Object.entries(d
 function cRender(d){
   const out=$("#cout"); out.replaceChildren();
   const temFicha = cSaida!=="gemini", temPrompts = cSaida!=="ficha";
-  const txt = [temFicha?fichaTexto(d):"", temPrompts?promptsTexto(d):""].filter(Boolean).join("\n");
+  if(!temPrompts && d.prompts_gemini && d.prompts_gemini.capa) d = { ...d, prompts_gemini:{ capa:d.prompts_gemini.capa } };
+  const soCapa = !temPrompts && !!(d.prompts_gemini && d.prompts_gemini.capa);
+  const txt = [temFicha?fichaTexto(d):(d.obra?fichaTexto({obra:d.obra}):""), (temPrompts||soCapa)?promptsTexto(d):""].filter(Boolean).join("\n");
   const cp = mk("button",{type:"button",className:"btn sm pri",textContent:"Copiar tudo"});
   cp.addEventListener("click",()=>copyText(txt,"Tudo copiado.",null,$("#cst")));
   const dl = mk("button",{type:"button",className:"btn sm",textContent:"Baixar como texto (.txt)"});
   dl.addEventListener("click",()=>saveBlob(`${slug($("#prefix").value)||"personagem"}_ficha.txt`, new Blob([txt],{type:"text/plain;charset=utf-8"})));
   out.append(mk("div",{className:"row"}, cp, dl));
   const add = b => { if(b) out.append(b); };
+  add(kvBlock("Sinopse da obra", d.obra));
   if(temFicha){
     add(kvBlock("Do que se trata o vídeo", d.identificacao)); add(kvBlock("Personagem", d.personagem));
     add(listBlock("Vistas", d.vistas)); add(listBlock("Poses", d.poses)); add(listBlock("Expressões", d.expressoes));
     add(textBlock("Quadros usados", d.referencias_usadas));
   }
-  if(temPrompts) Object.entries(d.prompts_gemini||{}).forEach(([k,v])=>{ if(v) out.append(promptBlock(PROMPT_NOMES[k]||rot(k), String(v))); });
+  if(temPrompts||soCapa) Object.entries(d.prompts_gemini||{}).forEach(([k,v])=>{ if(v) out.append(promptBlock(PROMPT_NOMES[k]||rot(k), String(v))); });
   add(listBlock("Para conferir", d.avisos));
   out.scrollIntoView({behavior:"smooth", block:"start"});
 }
@@ -1009,7 +1047,7 @@ $("#cAi").addEventListener("click", async()=>{
     show(st, cModo==="texto" ? "A IA está criando o personagem a partir do seu prompt… pode levar até 1 minuto." : "A IA está olhando os quadros e criando o personagem… pode levar até 1 minuto.");
     const v=cVals();
     const r = await fetch("/api/ficha", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" },
-      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, texto:v.texto, imagens }) });
+      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, texto:v.texto, extras:cExtras(), imagens }) });
     let j=null; try{ j=await r.json(); }catch{}
     if(r.status===404) throw new Error("A IA do app só funciona no site publicado, não no computador local.");
     if(!r.ok) throw new Error(CAI_ERR[j&&j.error] || `Não deu certo (erro ${r.status}).`);

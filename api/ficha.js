@@ -26,7 +26,19 @@ const ESTILOS = {
 
 const clip = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
+const CAPA_FMT = {
+  poster: 'pôster de filme vertical, proporção 2:3',
+  streaming: 'capa horizontal de série ou anime para streaming, proporção 16:9',
+  manga: 'capa vertical de mangá ou livro, com espaço para o título no topo',
+};
+
 const ESQUEMA = `{
+  "obra": {
+    "titulo": "título da obra (só se pedirem sinopse ou capa; senão vazio)",
+    "logline": "frase de efeito de uma linha",
+    "sinopse": "um parágrafo de 5 a 7 frases, sem contar o final",
+    "genero_publico": "gênero e público"
+  },
   "identificacao": {
     "tipo_de_video": "do que se trata o vídeo (filme, série, anime, desenho, jogo, vídeo de character design...)",
     "realista_ou_animado": "live-action (realista) ou animado (anime, desenho 2D, 3D)",
@@ -56,12 +68,13 @@ const ESQUEMA = `{
     "folha_de_personagem": "prompt completo para gerar a folha de personagem (turnaround: frente, perfil, costas) em fundo liso",
     "poses": "prompt completo para uma folha com as 6 poses",
     "expressoes": "prompt completo para uma folha com as 6 expressões",
-    "cena": "prompt completo para uma ilustração do personagem em cena"
+    "cena": "prompt completo para uma ilustração do personagem em cena",
+    "capa": "prompt completo para a capa (só se pedirem capa; senão vazio)"
   },
   "avisos": ["o que ficou incerto ou o que o usuário deve conferir"]
 }`;
 
-function systemPrompt({ modo, saida, idioma, estilo }) {
+function systemPrompt({ modo, saida, idioma, estilo, extras }) {
   const comum = [
     'Você é um diretor de arte e character designer sênior. Você recebe quadros extraídos de um vídeo que o usuário gravou e usa SÓ como referência visual de estilo.',
     'Regras que valem sempre:',
@@ -99,6 +112,12 @@ function systemPrompt({ modo, saida, idioma, estilo }) {
   return [
     ...comum,
     ...porModo,
+    extras.sinopse
+      ? `SINOPSE: preencha "obra" com título (${extras.titulo ? `use "${extras.titulo}"` : 'sugira um título original'}), logline, sinopse de um parágrafo sem contar o final, e gênero e público. Escreva em português do Brasil.`
+      : 'Deixe "obra" com campos vazios, a menos que a capa precise do título.',
+    extras.capa
+      ? `CAPA: em "prompts_gemini.capa" escreva um prompt completo para gerar a capa: ${CAPA_FMT[extras.capaFmt] || CAPA_FMT.poster}; o personagem em destaque numa pose marcante, cenário do universo ao fundo, a paleta definida, e o título ${extras.titulo ? `"${extras.titulo}"` : '(o de "obra.titulo")'} escrito de forma legível com tipografia do gênero, sem nenhum outro texto. Preencha também "obra.titulo".`
+      : 'Deixe "prompts_gemini.capa" vazio.',
     `ESTILO DO PERSONAGEM escolhido pelo usuário: crie, descreva e escreva os prompts com o personagem ${ESTILOS[estilo] || ESTILOS.video}. Todos os prompts precisam dizer esse estilo com clareza.`,
     porSaida,
     lang,
@@ -137,6 +156,8 @@ export default async function handler(req, res) {
   const saida = ['ficha', 'gemini', 'ambos'].includes(b.saida) ? b.saida : 'ambos';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
   const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'video';
+  const x = b.extras || {};
+  const extras = { sinopse: !!x.sinopse, capa: !!x.capa, titulo: clip(x.titulo, 80), capaFmt: Object.hasOwn(CAPA_FMT, x.capaFmt) ? x.capaFmt : 'poster' };
   const imgs = Array.isArray(b.imagens) ? b.imagens.slice(0, MAX_IMAGES) : [];
   const texto = clip(b.texto, 3000);
   if (modo === 'texto' && !texto) return res.status(400).json({ error: 'sem_texto' });
@@ -180,7 +201,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 4000,
-        system: systemPrompt({ modo, saida, idioma, estilo }),
+        system: systemPrompt({ modo, saida, idioma, estilo, extras }),
         messages: [{ role: 'user', content }],
       }),
     });

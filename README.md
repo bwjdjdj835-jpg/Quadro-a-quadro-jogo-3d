@@ -17,6 +17,8 @@ Com os quadros marcados, escolha:
 2. **Estilo do personagem:** *Igual ao vídeo*, *Anime*, *Desenho animado*, *Animação 3D* ou *Realista* (live-action). Vale para a ficha técnica e para os prompts.
 3. **O que receber:** *Ficha técnica*, *Prompt para o Gemini* ou *Os dois*.
 
+4. **Capa e sinopse (opcional):** marque *Sinopse da obra* (título, frase de efeito e resumo) e/ou *Capa* (prompt para gerar a capa: pôster 2:3, capa de streaming 16:9 ou capa de mangá/livro), com título opcional.
+
 Duas formas de gerar:
 
 - **Opção A, IA do app** (`/api/ficha`): manda até 6 quadros reduzidos para a API do Claude e mostra a ficha e os prompts. Precisa, na Vercel (Settings → Environment Variables):
