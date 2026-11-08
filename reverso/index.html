@@ -153,7 +153,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     <section class="step" aria-labelledby="h2s">
       <h2 id="h2s"><span class="n">02</span>Seu pedido</h2>
       <div class="modos" role="radiogroup" aria-label="Quem cria">
-        <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e a IA cria o personagem.</small></button>
+        <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e o app cria UM personagem: exatamente o que você pediu.</small></button>
         <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
       </div>
       <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
@@ -528,7 +528,7 @@ Escreva-os de forma abstrata, sem depender do nome, dos acessórios exclusivos o
 Exemplo: "Pequenos acentos luminosos direcionam a atenção ao rosto" em vez de "copiar a máscara verde do personagem".
 
 ETAPA 4 — CRIAÇÃO
-${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e tom). Depois proponha três personagens diferentes desse universo, com papéis diferentes (por exemplo protagonista, antagonista e aliado). Cada um deve ter:" : "Proponha três conceitos diferentes para o novo briefing. Cada conceito deve ter:"}
+${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e tom). Depois proponha três personagens diferentes desse universo, com papéis diferentes (por exemplo protagonista, antagonista e aliado). Cada um deve ter:" : "Crie UM personagem só: exatamente o que eu descrevi no meu pedido, sem propor alternativas. Ele deve ter:"}
 - uma ideia narrativa central;
 - silhueta própria;
 - proporções coerentes;
@@ -539,11 +539,11 @@ ${ia ? "Primeiro apresente o universo que você criou (nome, premissa, mundo e t
 Não se limite a mudar cores ou roupas. Evite repetir a combinação de traços distintivos da referência. Use os princípios estudados, mas desenvolva novas soluções.
 
 ETAPA 5 — REVISÃO
-Compare as propostas pelos critérios: leitura em miniatura; clareza da personalidade; coerência funcional; hierarquia visual; diferenciação em relação à referência.
+${ia ? "Compare as propostas pelos critérios:" : "Avalie o personagem pelos critérios:"} leitura em miniatura; clareza da personalidade; coerência funcional; hierarquia visual; diferenciação em relação à referência.
 Aponte fragilidades e proponha correções concretas. Não afirme que a originalidade pode ser garantida.
 
 ETAPA 6 — PROMPT FINAL DE IMAGEM
-${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Escolha a proposta mais adequada ao briefing e entregue um prompt autossuficiente"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
+${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Entregue um prompt autossuficiente do personagem"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
 Descreva: personagem, silhueta, proporções, rosto, cabelo, vestuário, materiais, acessórios, pose, expressão, cores, iluminação, acabamento, fundo e composição.
 ${b.formato === "prancha" ? "Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas." : "A imagem final é UM character design do personagem: corpo inteiro, em pose três-quartos que mostre a personalidade, fundo neutro liso, sem vistas múltiplas e sem textos."}
 Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.
@@ -603,7 +603,7 @@ $("#ia").onclick = async () => {
     const dados = MotorReverso.gerar(perfil, ped, { modo:b.modo, criatividade:b.criatividade, idioma:b.idioma, estilo:b.estilo, formato:b.formato, obra, semente:String(Date.now()) });
     ultimo = { id: Date.now(), data: new Date().toISOString(), briefing: { ...b, obra }, dados };
     mostra(ultimo, true); mostraPerfis();
-    status2(`Pronto: ${sel.length} referências medidas${perfil.analises > 1 ? `, somadas ao estilo aprendido de "${obra}" (${perfil.n} referências em ${perfil.analises} análises)` : ""}. Clique de novo para outras 3 opções de conceito.`, "ok");
+    status2(`Pronto: ${sel.length} referências medidas${perfil.analises > 1 ? `, somadas ao estilo aprendido de "${obra}" (${perfil.n} referências em ${perfil.analises} análises)` : ""}. ${b.modo === "ia" ? "Clique de novo para outro universo." : "Clique de novo para outra versão do mesmo personagem."}`, "ok");
   }catch(e){ status2(/mem|alloc/i.test(String(e && e.message)) ? "O aparelho ficou sem memória. Marque menos referências." : "Não deu para analisar: " + (e && e.message || "erro"), "err"); }
   finally{ btn.disabled = false; }
 };
@@ -668,7 +668,7 @@ function mostra(c, novo){
     const ok = esc && S(k.nome).toLowerCase() === esc;
     cs.append(el("div", { className:"conceito" + (ok ? " escolhido" : "") }, el("h3", {}, S(k.nome), ok ? el("span", { className:"pill", textContent:"escolhido" }) : null), dl));
   });
-  out.append(etapa("04", d.universo_proposto && d.universo_proposto.nome ? "Três personagens do universo" : "Três conceitos", cs));
+  out.append(etapa("04", d.universo_proposto && d.universo_proposto.nome ? "Três personagens do universo" : arr(d.conceitos).length === 1 ? "O seu personagem" : "Três conceitos", cs));
   const r = d.revisao || {}, tb = el("table"), hd = el("tr"); ["Conceito","Miniatura","Personalidade","Coerência","Hierarquia","Diferenciação"].forEach(h => hd.append(el("th", { textContent:h }))); tb.append(hd);
   arr(r.comparacao).forEach(k => { const tr = el("tr"); [k.conceito, k.leitura_em_miniatura, k.clareza_da_personalidade, k.coerencia_funcional, k.hierarquia_visual, k.diferenciacao_da_referencia].forEach(x => tr.append(el("td", { textContent:S(x) }))); tb.append(tr); });
   out.append(etapa("05", "Revisão", el("div", { className:"tabela" }, tb), el("p", { className:"label", textContent:"Fragilidades" }), lista(r.fragilidades), el("p", { className:"label", textContent:"Correções" }), lista(r.correcoes)));

@@ -294,19 +294,23 @@ function gerar(p, ped, opt){
   const usados = new Set(), sorteia = (lista, chave) => { let x, t = 0; do { x = pick(r, lista); t++; } while(usados.has(chave(x)) && t < 20); usados.add(chave(x)); return x; };
   const silhRef = p.massa[0] > p.massa[2] ? 0 : 1;
   const nomes = ia ? ["", "", ""].map(() => pick(r, BANCO.universos.prefixo) + pick(r, BANCO.universos.sufixo)) : ["A", "B", "C"].map(x => `Conceito ${x}`);
-  const conceitos = [0, 1, 2].map(i => {
-    const silh = sorteia(BANCO.silhuetas.filter((_, k) => i === 0 && fiel ? k === silhRef || k > 1 : true), s => s.pt);
+  const unico = !ia; // "Eu descrevo": um personagem só, o do pedido
+  const formaRef = p.agudos > .3 ? "angular" : p.curvos > .5 ? "curva" : p.retos > .55 ? "retangular" : "mista";
+  const nomeUnico = (() => { const t = (ped.ideia || "").replace(/^(uma?|o|a)\s+/i, "").split(/[,;:]| que | de \d/)[0].trim(); return t ? t[0].toUpperCase() + t.slice(1, 60) : "Seu personagem"; })();
+  const conceitos = (unico ? [0] : [0, 1, 2]).map(i => {
+    const candidatas = unico && !livre ? BANCO.silhuetas.filter(s => s.forma === formaRef) : BANCO.silhuetas;
+    const silh = sorteia((candidatas.length ? candidatas : BANCO.silhuetas).filter((_, k) => !unico && i === 0 && fiel ? k === silhRef || k > 1 : true), s => s.pt);
     const mat = sorteia(BANCO.materiais[mundo], m => m.pt), elem = sorteia(BANCO.elementos, e => e.pt), ideia = sorteia(BANCO.ideias, e => e.pt);
-    const usaPedido = !ia && !!ped.ideia, variacao = ["fiel ao seu pedido", "variação do seu pedido", livre ? "versão ousada do seu pedido" : "versão alternativa do seu pedido"][i];
-    const twist = i === 2 && (livre || !ped.ideia) ? ideia : null;
+    const usaPedido = !ia && !!ped.ideia, variacao = unico ? "seu personagem" : ["fiel ao seu pedido", "variação do seu pedido", livre ? "versão ousada do seu pedido" : "versão alternativa do seu pedido"][i];
+    const twist = (unico ? livre : i === 2 && (livre || !ped.ideia)) ? ideia : null;
     const desloc = fiel ? [0, 20, -20][i] : livre ? [0, 140, 200][i] : [0, 60, -60][i];
     const cab = p.cabecas ? Math.max(2.5, Math.min(9, p.cabecas + (fiel ? 0 : livre ? [0, 1.5, -1.2][i] : [0, .8, -.6][i]))) : [6.5, 7.5, 5.5][i];
     const papel = ia ? papeisIA[i] : [ped.papel || "", ped.papelEn || ""];
-    return { nome: ia ? `${nomes[i]} (${papel[0]})` : nomes[i] + (ped.papel ? ` · ${ped.papel}` : ""),
+    return { nome: ia ? `${nomes[i]} (${papel[0]})` : unico ? nomeUnico + (ped.papel ? ` · ${ped.papel}` : "") : nomes[i] + (ped.papel ? ` · ${ped.papel}` : ""),
       _en: { silh: silh.en, mat: ped.aparencia && !ia ? null : mat.en, elem: ped.obrigatorias && !ia ? null : elem.en, ideia: usaPedido ? null : ideia.en, twist: twist && twist.en, cores: ped.cores && !ia ? null : corTxt(desloc, "en"), cab, papel: papel[1] },
       ideia_narrativa: ia ? `${papel[0][0].toUpperCase() + papel[0].slice(1)}: ${ideia.pt}.` : usaPedido ? `${variacao[0].toUpperCase() + variacao.slice(1)}: ${ped.ideia}${ped.personalidade ? `; personalidade ${ped.personalidade}` : ""}${ped.poder && !ped.ideia.includes(ped.poder) ? `; ${ped.poder}` : ""}${twist ? `. Toque extra: ${twist.pt}` : ""}.` : `${ideia.pt}.`,
       silhueta: silh.pt + ".",
-      proporcoes: `Cerca de ${cab.toFixed(1)} cabeças${i === 0 ? ", perto da referência" : ", diferente da referência para criar contraste"}${ped.idade ? `; idade de ${ped.idade} anos` : ""}.`,
+      proporcoes: `Cerca de ${cab.toFixed(1)} cabeças${i === 0 ? ", como na referência" : ", diferente da referência para criar contraste"}${ped.idade ? `; idade de ${ped.idade} anos` : ""}.`,
       linguagem_de_formas: silh.forma === "angular" ? "Triângulos e diagonais dominantes, com uma única curva no rosto para humanizar." : silh.forma === "curva" ? "Círculos e curvas dominantes, com um elemento reto e duro como contraste." : silh.forma === "retangular" ? "Retângulos e blocos, com pequenas pontas só nos acessórios." : "Mistura de curvas no corpo e ângulos no figurino.",
       figurino_e_materiais: !ia && ped.aparencia ? `Como você pediu: ${ped.aparencia}. Construção no estilo da referência: ${mat.pt}${i === 0 ? "" : ", em outra combinação de camadas"}.` : `${mat.pt}; cada peça com uma função na história.`,
       organizacao_cromatica: !ia && ped.cores ? `Como você pediu: ${ped.cores}. Valores e saturação no padrão da referência (${T.chave}, ${T.sat}).` : `Base derivada da paleta medida, girada ${desloc}° no círculo de cores: ${corTxt(desloc, "pt")}. Valores agrupados como na referência (${T.chave}).`,
@@ -320,7 +324,17 @@ function gerar(p, ped, opt){
     return { conceito: c.nome, leitura_em_miniatura: miniatura, clareza_da_personalidade: ped.texto || ia ? "clara, ligada à ideia narrativa" : "média: falta definir a personalidade no pedido",
       coerencia_funcional: "coerente se cada peça mantiver a função descrita", hierarquia_visual: `foco no ${T.foco} e no elemento marcante`, diferenciacao_da_referencia: i === 0 ? "menor: mais próximo da referência" : i === 1 ? "média" : "maior: proporção e cor mais distantes" };
   };
-  const revisao = { comparacao: conceitos.map(nota),
+  const revisao = unico ? { comparacao: conceitos.map((c, i) => ({ ...nota(c, i), diferenciacao_da_referencia: "segue o estilo da referência; a identidade vem do seu pedido" })),
+    fragilidades: [
+      ped.obrigatorias ? `O item obrigatório (${ped.obrigatorias}) pode competir com o rosto pela atenção.` : "Sem item obrigatório, o personagem pode ficar genérico se o elemento marcante for discreto demais.",
+      p.contraste < .17 ? "O contraste da referência é suave; em miniatura o personagem pode se misturar com o fundo." : "Detalhe demais no figurino pode tirar a leitura em miniatura.",
+      !ped.personalidade ? "A personalidade não foi descrita; a pose e a expressão podem sair neutras." : `Confira se a pose passa a personalidade (${ped.personalidade}).`
+    ],
+    correcoes: [
+      "Deixe o maior contraste no rosto e use o item marcante como segundo ponto de foco.",
+      p.contraste < .17 ? "Aumente o contraste só na cabeça e nas mãos." : "Simplifique as áreas longe do foco (calças, costas) para dar descanso ao olhar.",
+      !ped.personalidade ? "Escreva 2 ou 3 traços de personalidade no pedido e gere de novo." : "Escolha uma linha de ação que combine com essa personalidade."
+    ] } : { comparacao: conceitos.map(nota),
     fragilidades: [
       `${conceitos[0].nome}: pode ficar parecido demais com a referência.`,
       `${conceitos[2].nome}: a mudança de cor pode quebrar a unidade com o resto da obra.`,
@@ -331,8 +345,8 @@ function gerar(p, ped, opt){
       `${conceitos[2].nome}: mantenha um acento da paleta original para ligar à obra.`,
       p.contraste < .17 ? "Aumente o contraste só na cabeça e nas mãos." : "Reduza o detalhe perto do elemento marcante e deixe o rosto com o maior contraste."
     ] };
-  const escolhidoIdx = ia ? 0 : fiel ? 0 : livre ? 2 : 1;
-  const escolhido = { conceito: conceitos[escolhidoIdx].nome, motivo: ia ? "É o personagem principal do universo criado." : fiel ? "Segue mais de perto o pedido e a referência." : livre ? "Tem a maior diferença em relação à referência, como pede a criatividade livre." : "Equilibra fidelidade ao estilo e solução nova." };
+  const escolhidoIdx = ia || unico ? 0 : fiel ? 0 : livre ? 2 : 1;
+  const escolhido = { conceito: conceitos[escolhidoIdx].nome, motivo: unico ? "É o personagem que você descreveu, no estilo aprendido das referências." : ia ? "É o personagem principal do universo criado." : fiel ? "Segue mais de perto o pedido e a referência." : livre ? "Tem a maior diferença em relação à referência, como pede a criatividade livre." : "Equilibra fidelidade ao estilo e solução nova." };
 
   // ETAPA 6: prompts autossuficientes (sem imagens anexadas)
   const estiloEN = `VISUAL STYLE: ${p.plano > .45 ? "clean 2D digital art with cel-shading in 1-2 shadow tones" : p.plano > .3 ? "digital illustration mixing flat color areas and soft gradients" : "painterly rendering with soft gradients and visible texture"}; ${p.contorno > .5 ? "consistent dark outlines (line art)" : p.contorno > .3 ? "thin outlines on part of the forms" : "no dark outlines, edges defined by color"}; ${p.bordas > .09 ? "rich interior detail" : p.bordas > .045 ? "moderate interior detail" : "minimal interior detail, clean shapes"}; ${p.luz > .6 ? "high-key, light overall values" : p.luz < .35 ? "low-key, dark overall values" : "mid-key values"} with ${p.contraste > .26 ? "strong" : p.contraste > .17 ? "medium" : "soft"} contrast; ${p.saturacao > .5 ? "saturated, vivid colors" : p.saturacao > .25 ? "moderately saturated colors" : "desaturated, almost neutral colors"} with ${p.quente > p.frio + .15 ? "warm" : p.frio > p.quente + .15 ? "cool" : "balanced"} dominance and ${p.pctSat < .2 ? "small, saturated accent colors" : "color spread across the figure"}; palette of ${paletaBase.slice(0, 5).map(c => corNome(...c.rgb, true)).join(", ")}; ${p.cabecas ? `proportions around ${p.cabecas.toFixed(1)} heads tall` : "stylized proportions"}; ${p.agudos > .3 ? "angular shape language" : p.curvos > .5 ? "rounded shape language" : p.retos > .55 ? "blocky rectangular shape language" : "mixed shape language"}.`;
