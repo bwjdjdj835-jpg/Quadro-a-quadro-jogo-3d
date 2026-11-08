@@ -187,7 +187,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos (ou universo + 3 personagens, se a IA cria tudo) → revisão → prompt final.</p>
     <div class="box destaque">
       <h3>Gerar o pedido completo · grátis, sem código</h3>
-      <p class="note">Monta o roteiro das 6 etapas com o seu pedido. Cole no Gemini, ChatGPT ou Claude e anexe a folha das referências marcadas (ou as imagens soltas).</p>
+      <p class="note">Monta o roteiro das 6 etapas com o seu pedido. Cole no Gemini, ChatGPT ou Claude e anexe só a folha das referências (uma imagem com até 12 quadros). A IA analisa a folha e devolve o prompt final com o estilo escrito em palavras, que funciona sem anexar nada.</p>
       <div class="row"><button class="btn pri" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha das referências</button></div>
     </div>
     <details class="box" open>
@@ -218,7 +218,7 @@ const $ = s => document.querySelector(s);
 const vid = $("#vid"), work = $("#work"), wctx = work.getContext("2d", { willReadFrequently:true }), small = $("#small"), sctx = small.getContext("2d", { willReadFrequently:true });
 const refs = []; // {id, blob, url, w, h, score|null, sel, nome, origem}
 let nextId = 1, running = false, cancel = false;
-const MAX_IA = 8;
+const MAX_IA = 8, MAX_FOLHA = 12;
 
 function show(el, msg, kind){ el.hidden = !msg; el.textContent = msg || ""; el.className = "status" + (kind ? " " + kind : ""); }
 const status = (m,k) => show($("#st"), m, k);
@@ -357,7 +357,8 @@ $("#limpar").onclick = e => confirma(e.currentTarget, "Tem certeza? Toque de nov
 
 /* ---------- folha de referências (uma imagem só, para anexar) ---------- */
 async function folha(){
-  const sel = refs.filter(r => r.sel); if(!sel.length){ status2("Marque pelo menos uma referência no passo 03.", "err"); return null; }
+  let sel = refs.filter(r => r.sel); if(!sel.length){ status2("Marque pelo menos uma referência no passo 03.", "err"); return null; }
+  if(sel.length > MAX_FOLHA) sel = Array.from({ length:MAX_FOLHA }, (_, i) => sel[Math.round(i*(sel.length-1)/(MAX_FOLHA-1))]);
   const cols = sel.length === 1 ? 1 : sel.length <= 4 ? 2 : 3, cw = sel.length === 1 ? 1600 : 760, rows = Math.ceil(sel.length/cols);
   const cellH = Math.round(cw*0.75), pad = 16, c = document.createElement("canvas");
   c.width = cols*cw + (cols+1)*pad; c.height = rows*(cellH+28) + (rows+1)*pad;
@@ -371,7 +372,7 @@ async function folha(){
   return new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
 }
 function baixar(nome, blob){ const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); }
-async function baixarFolha(){ const b = await folha(); if(b){ baixar(`referencias_${new Date().toISOString().slice(0,10)}.jpg`, b); status2("Folha das referências baixada. Anexe ela junto com o pedido.", "ok"); } }
+async function baixarFolha(){ const b = await folha(); if(b){ baixar(`referencias_${new Date().toISOString().slice(0,10)}.jpg`, b); const n = refs.filter(r => r.sel).length; status2(n > MAX_FOLHA ? `Folha baixada com ${MAX_FOLHA} das ${n} referências marcadas (espalhadas pelo vídeo). Anexe só ela junto com o pedido: uma imagem basta.` : "Folha das referências baixada. Anexe só ela junto com o pedido: uma imagem basta.", "ok"); } }
 $("#sheetBtn").onclick = baixarFolha; $("#sheetBtn2").onclick = baixarFolha;
 
 /* ---------- briefing salvo e obras ---------- */
@@ -466,13 +467,20 @@ ETAPA 6 — PROMPT FINAL DE IMAGEM
 ${ia ? "Entregue um prompt autossuficiente para cada um dos três personagens, começando pelo principal," : "Escolha a proposta mais adequada ao briefing e entregue um prompt autossuficiente"} ${b.idioma === "pt" ? "em português" : "em inglês"} para gerar a imagem.
 Descreva: personagem, silhueta, proporções, rosto, cabelo, vestuário, materiais, acessórios, pose, expressão, cores, iluminação, acabamento, fundo e composição.
 Para uma prancha de personagem, solicite: vista frontal, lateral e traseira com proporções e figurino consistentes; três expressões faciais; detalhes dos acessórios; fundo neutro; espaçamento claro entre as vistas.
-Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.`;
+Não inclua interfaces de sites, capturas de tela ou outros elementos acidentais das referências.
+
+IMPORTANTE: o prompt final será usado em outro chat, SEM as imagens de referência anexadas. Por isso:
+- Traduza em palavras tudo o que você aprendeu com as referências na engenharia reversa: tipo de traço e contorno, sombreamento, nível de estilização, proporções, linguagem de formas, organização de valores, paleta (cores descritas em palavras), materiais e acabamento.
+- Nunca escreva "como na referência", "igual às imagens", "no estilo anexado" nem cite imagens. O prompt tem de funcionar sozinho.
+- Comece o prompt com um parágrafo "ESTILO VISUAL" e depois descreva o personagem.
+
+ENTREGUE TAMBÉM um BLOCO DE ESTILO reutilizável (5 a 8 linhas), só com o estilo aprendido e sem o personagem, para eu colar no começo de qualquer prompt futuro desta obra.`;
 }
 $("#montar").onclick = () => {
   if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   const t = pedido(), out = $("#out"); out.replaceChildren(blocoTexto("Pedido completo para colar", t));
   const n = refs.filter(r => r.sel).length;
-  status2(n ? `Pedido pronto. Copie, cole no Gemini, ChatGPT ou Claude e anexe a folha das ${n} referências (botão "Baixar folha das referências").` : "Pedido pronto. Você ainda não tem referências marcadas: anexe as imagens no chat da IA ou marque referências no passo 03.", n ? "ok" : "");
+  status2(n ? `Pedido pronto. Copie, cole no Gemini, ChatGPT ou Claude e anexe UMA imagem: a folha das referências (botão "Baixar folha das referências"). O prompt final que a IA devolver já vem com o estilo escrito em palavras, para você usar depois sem anexar nada.` : "Pedido pronto. Você ainda não tem referências marcadas: anexe as imagens no chat da IA ou marque referências no passo 03.", n ? "ok" : "");
   out.scrollIntoView({ behavior:"smooth", block:"start" });
 };
 
@@ -541,6 +549,7 @@ function texto(c){
   L.push("Fragilidades:", ...arr(r.fragilidades).map(x => "- " + x), "Correções:", ...arr(r.correcoes).map(x => "- " + x), "");
   L.push(`ETAPA 6 · PROMPT FINAL (conceito escolhido: ${S(d.escolhido && d.escolhido.conceito)})`, S(d.escolhido && d.escolhido.motivo), "", S(d.prompt_final), "");
   arr(d.prompts_outros).forEach(p => L.push(`PROMPT · ${S(p.personagem)}`, S(p.prompt), ""));
+  if(d.estilo_aprendido) L.push("BLOCO DE ESTILO (para usar sem anexar imagens)", S(d.estilo_aprendido), "");
   if(d.aviso_originalidade) L.push("AVISO: " + d.aviso_originalidade);
   return L.join("\n");
 }
@@ -573,6 +582,7 @@ function mostra(c, novo){
   arr(r.comparacao).forEach(k => { const tr = el("tr"); [k.conceito, k.leitura_em_miniatura, k.clareza_da_personalidade, k.coerencia_funcional, k.hierarquia_visual, k.diferenciacao_da_referencia].forEach(x => tr.append(el("td", { textContent:S(x) }))); tb.append(tr); });
   out.append(etapa("05", "Revisão", el("div", { className:"tabela" }, tb), el("p", { className:"label", textContent:"Fragilidades" }), lista(r.fragilidades), el("p", { className:"label", textContent:"Correções" }), lista(r.correcoes)));
   const pf = blocoTexto(`Prompt final · ${S(d.escolhido && d.escolhido.conceito)}`, S(d.prompt_final));
+  if(d.estilo_aprendido) out.append(etapa("✎", "Bloco de estilo aprendido (para usar sem anexar imagens)", el("p", { className:"note", textContent:"Cole no começo de qualquer prompt futuro desta obra para manter o mesmo estilo." }), blocoTexto("Bloco de estilo", S(d.estilo_aprendido))));
   out.append(etapa("06", "Prompt final da prancha", d.escolhido && d.escolhido.motivo ? el("p", { className:"note", textContent:S(d.escolhido.motivo) }) : null, pf));
   arr(d.prompts_outros).forEach(p => out.append(blocoTexto(`Prompt · ${S(p.personagem)}`, S(p.prompt))));
   if(d.aviso_originalidade) out.append(el("p", { className:"note", textContent:"Aviso: " + S(d.aviso_originalidade) }));
