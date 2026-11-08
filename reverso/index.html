@@ -154,7 +154,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
       <h2 id="h2s"><span class="n">02</span>Seu pedido</h2>
       <div class="modos" role="radiogroup" aria-label="Quem cria">
         <button class="modo" type="button" role="radio" data-modo="descrevo" aria-checked="true"><b>Eu descrevo</b><small>Você conta tudo num lugar só e a IA cria o personagem.</small></button>
-        <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>A IA cria tudo</b><small>A IA inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
+        <button class="modo" type="button" role="radio" data-modo="ia" aria-checked="false"><b>O app cria tudo</b><small>O app inventa o universo e 3 personagens a partir das referências. Escrever é opcional.</small></button>
       </div>
       <div class="field"><label class="label" for="pedidoLivre" id="pedidoLabel">Escreva tudo aqui</label>
         <textarea id="pedidoLivre" rows="9" placeholder=""></textarea></div>
@@ -186,16 +186,15 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
     <h2 id="h4s"><span class="n">04</span>Engenharia reversa e criação</h2>
     <p class="note">Leitura → decomposição em 9 tópicos → 5 princípios → 3 conceitos (ou universo + 3 personagens, se a IA cria tudo) → revisão → prompt final.</p>
     <div class="box destaque">
-      <h3>Gerar o pedido completo · grátis, sem código</h3>
-      <p class="note">O app analisa as referências marcadas aqui mesmo (paleta, claros e escuros, contraste, linha, sombreamento) e escreve essa análise dentro do pedido. Cole no Gemini, ChatGPT ou Claude: não precisa anexar nada. A folha das referências é opcional, só para mais precisão em silhueta e rosto.</p>
-      <div class="row"><button class="btn pri" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha (opcional)</button></div>
+      <h3>Analisar com o motor do app · grátis, sem API, sem crédito</h3>
+      <p class="note">O próprio app faz a engenharia reversa aqui no seu aparelho, em JavaScript puro: mede TODAS as referências marcadas (silhueta, proporção de cabeças, distribuição de massa, formas, simetria, claros e escuros, paleta, ponto focal, contorno e sombreamento) e gera as 6 etapas, os 3 conceitos e o prompt final com o estilo em palavras. Ele também aprende o estilo de cada obra: escreva "Obra: nome" no pedido e, a cada vídeo analisado, o perfil dessa obra fica mais preciso.</p>
+      <div class="row"><button class="btn pri" type="button" id="ia">Analisar com o motor do app</button><span class="meta" id="iaInfo"></span></div>
+      <div id="perfisInfo" class="meta"></div>
     </div>
-    <details class="box" open>
-      <summary>Analisar com a IA do app · ela faz as 6 etapas sozinha (precisa do código de envio)</summary>
-      <p class="note">A IA lê TODAS as referências marcadas antes de criar: junta 16 quadros por folha e lê em lotes (a engenharia reversa), depois faz as 6 etapas com a leitura de tudo. Cada lote é uma chamada paga à API. Precisa das variáveis UPLOAD_CODE e ANTHROPIC_API_KEY configuradas na Vercel deste projeto.</p>
-      <div class="fields"><div class="field"><label class="label" for="code">Código de envio</label><input type="text" class="codigo" id="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Digite uma vez"></div></div>
-      <div class="row"><button class="btn" type="button" id="ia">Analisar com a IA do app</button><span class="meta" id="iaInfo"></span></div>
-      <div id="iaStatus" class="status" hidden></div>
+    <details class="box">
+      <summary>Outra opção: gerar um pedido para colar no Gemini ou ChatGPT</summary>
+      <p class="note">O app escreve as medidas das referências dentro do pedido. Cole no Gemini, ChatGPT ou Claude, sem anexar nada. A folha é opcional, para a IA ver silhueta e rosto.</p>
+      <div class="row"><button class="btn" type="button" id="montar">Gerar pedido completo</button><button class="btn" type="button" id="sheetBtn2">Baixar folha (opcional)</button></div>
     </details>
     <div id="st2" class="status" hidden></div>
     <div id="out" class="out"></div>
@@ -214,6 +213,7 @@ pre.prompt{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);fo
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Referência ampliada"><img id="vImg" alt=""><button class="btn" type="button" id="vClose">Fechar</button></div>
 <canvas id="work" hidden></canvas><canvas id="small" hidden></canvas>
 
+<script src="motor.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const vid = $("#vid"), work = $("#work"), wctx = work.getContext("2d", { willReadFrequently:true }), small = $("#small"), sctx = small.getContext("2d", { willReadFrequently:true });
@@ -324,7 +324,7 @@ function render(){
   const nSel = refs.filter(r => r.sel).length;
   $("#count").textContent = `${refs.length} referências · ${nSel} marcadas`;
   const nUse = Math.min(nSel, MAX_TOTAL), nF = Math.ceil(nUse/POR_FOLHA), nL = Math.ceil(nF/FOLHAS_LOTE);
-  $("#iaInfo").textContent = nSel ? `a IA lê ${nUse === nSel ? "todas as" : `${nUse} de`} ${nSel} referências, em ${nL} lote${nL > 1 ? "s" : ""}, antes de criar` : "sem referências marcadas";
+  $("#iaInfo").textContent = nSel ? `o motor mede todas as ${nSel} referências marcadas` : "sem referências marcadas";
   if(!refs.length){ g.innerHTML = '<div class="empty">As referências aparecem aqui.</div>'; return; }
   refs.forEach((r, i) => {
     const card = document.createElement("div"); card.className = "ref" + (r.sel ? " sel" : "");
@@ -555,7 +555,7 @@ IMPORTANTE: o prompt final será usado em outro chat, SEM as imagens de referên
 ENTREGUE TAMBÉM um BLOCO DE ESTILO reutilizável (5 a 8 linhas), só com o estilo aprendido e sem o personagem, para eu colar no começo de qualquer prompt futuro desta obra.`;
 }
 $("#montar").onclick = async () => {
-  if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
+  if(modo === "descrevo" && !$("#pedidoLivre").value.trim()){ status2("Escreva o seu pedido no passo 02, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
   const n = refs.filter(r => r.sel).length, btn = $("#montar"); btn.disabled = true;
   try{
     if(n){ status2(`Analisando ${Math.min(n, 60)} referências no seu aparelho…`); analiseAtual = await analisaRefs(); } else analiseAtual = null;
@@ -579,75 +579,34 @@ function blocoTexto(titulo, t){
   return el("div", { className:"etapa" }, el("h3", { textContent:titulo }), el("pre", { className:"prompt", textContent:t }), el("div", { className:"row" }, b1, b2));
 }
 
-/* ---------- Opção B: IA do app ---------- */
-const ERR = { codigo:"Código de envio errado.", sem_codigo:"Este projeto na Vercel ainda não tem o UPLOAD_CODE configurado.", sem_chave:"Falta a ANTHROPIC_API_KEY neste projeto na Vercel. Enquanto isso, use o pedido completo.", chave_invalida:"A chave da IA foi recusada. Confira a ANTHROPIC_API_KEY na Vercel.", sem_credito:"A conta da IA está sem crédito.", ocupado:"A IA está ocupada. Tente de novo em um minuto.", grande:"As imagens ficaram grandes demais. Marque menos referências.", imagem:"Uma das imagens não foi aceita.", sem_pedido:"Escreva o seu pedido no passo 02.", sem_referencia:"Marque referências no passo 03 ou escreva algo no pedido.", rede:"O servidor não conseguiu falar com a IA.", api:"A IA devolveu um erro. Tente de novo." };
-async function b64(r){
-  const bmp = await createImageBitmap(r.blob), sc = Math.min(1, 1024/Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
-  c.width = Math.round(bmp.width*sc); c.height = Math.round(bmp.height*sc); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
-  const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.78));
-  return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
-}
-/* folhas de 16 quadros (4x4) para a IA ler todas as referências em lotes */
-async function folhasB64(sel){
-  const out = [], cols = 4, cw = 256, chH = 192, pad = 6, lab = 18;
-  for(let f=0; f<sel.length; f+=POR_FOLHA){
-    const grupo = sel.slice(f, f+POR_FOLHA), rows = Math.ceil(grupo.length/cols), c = document.createElement("canvas");
-    c.width = cols*cw + (cols+1)*pad; c.height = rows*(chH+lab) + (rows+1)*pad;
-    const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height); x.font = "bold 14px sans-serif"; x.fillStyle = "#111";
-    for(let i=0; i<grupo.length; i++){
-      const bmp = await createImageBitmap(grupo[i].blob), cx = pad + (i%cols)*(cw+pad), cy = pad + Math.floor(i/cols)*(chH+lab+pad);
-      const k = Math.min(cw/bmp.width, chH/bmp.height), w = bmp.width*k, h = bmp.height*k;
-      x.drawImage(bmp, cx + (cw-w)/2, cy + (chH-h)/2, w, h); bmp.close && bmp.close();
-      x.fillText(`#${f+i+1}`, cx, cy + chH + 14);
-    }
-    const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.72));
-    out.push({ nome: `Folha com os quadros #${f+1} a #${f+grupo.length}`, data: await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); }) });
-  }
-  return out;
-}
-async function chamaIA(code, corpo){
-  const r = await fetch("/api/reverso", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" }, body: JSON.stringify(corpo) });
-  let j = null; try{ j = await r.json(); }catch{}
-  if(r.status === 404) throw new Error("A IA do app só funciona no site publicado na Vercel.");
-  if(!r.ok) throw new Error(ERR[j && j.error] || `Não deu certo (erro ${r.status}).`);
-  return j;
-}
-function escolhe(){ const s = refs.filter(r => r.sel); if(s.length <= MAX_IA) return s; return Array.from({ length:MAX_IA }, (_, i) => s[Math.round(i*(s.length-1)/(MAX_IA-1))]); }
-(() => { const c = store.get("reverso-code", ""); if(c) $("#code").value = c; })();
+/* ---------- motor do app (sem API) ---------- */
 let ultimo = null;
+function mostraPerfis(){
+  const ps = MotorReverso.perfis(), ks = Object.keys(ps);
+  $("#perfisInfo").textContent = ks.length ? "Estilo aprendido: " + ks.map(k => `${k} (${ps[k].n} referências, ${ps[k].analises || 1} análise${(ps[k].analises || 1) > 1 ? "s" : ""})`).join(" · ") : "";
+}
 $("#ia").onclick = async () => {
-  const b = v(), code = $("#code").value.trim();
-  if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 02, ou escolha \"A IA cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
-  if(!code){ status2("Digite o código de envio.", "err"); $("#code").focus(); return; }
-  let todas = refs.filter(r => r.sel);
-  if(todas.length > MAX_TOTAL) todas = Array.from({ length:MAX_TOTAL }, (_, i) => todas[Math.round(i*(todas.length-1)/(MAX_TOTAL-1))]);
-  const sel = escolhe(); if(!sel.length && !b.texto){ status2("Marque referências no passo 03 ou escreva algo no pedido.", "err"); return; }
+  const b = v(), sel = refs.filter(r => r.sel);
+  if(b.modo === "descrevo" && !b.texto){ status2("Escreva o seu pedido no passo 02, ou escolha \"O app cria tudo\".", "err"); $("#pedidoLivre").focus(); return; }
+  if(!sel.length){ status2("Marque referências no passo 03: o motor precisa medir as imagens.", "err"); return; }
   const btn = $("#ia"); btn.disabled = true; $("#out").replaceChildren();
   try{
-    // 1) a IA lê TODAS as referências, em lotes de folhas, antes de criar
-    let notas = [];
-    if(todas.length > MAX_IA){
-      status2(`Montando as folhas com as ${todas.length} referências…`);
-      const folhas = await folhasB64(todas), lotes = [];
-      for(let i=0; i<folhas.length; i+=FOLHAS_LOTE) lotes.push(folhas.slice(i, i+FOLHAS_LOTE));
-      notas = new Array(lotes.length); let feitos = 0, prox = 0;
-      const trabalha = async () => { while(prox < lotes.length){ const i = prox++; const j = await chamaIA(code, { fase:"lote", lote:i+1, total:lotes.length, imagens:lotes[i] }); notas[i] = { lote:i+1, ...j.notas }; feitos++; status2(`Engenharia reversa: a IA leu ${feitos} de ${lotes.length} lotes (${todas.length} referências)…`); } };
-      status2(`Engenharia reversa: a IA está lendo ${lotes.length} lotes (${todas.length} referências)…`);
-      await Promise.all([trabalha(), trabalha(), trabalha()]);
-      store.set("reverso-code", code);
+    const ms = [];
+    for(let i=0; i<sel.length; i++){
+      ms.push(await MotorReverso.medir(sel[i].blob));
+      if(i % 5 === 0 || i === sel.length-1){ status2(`Engenharia reversa: medindo referência ${i+1} de ${sel.length}…`); await new Promise(r => setTimeout(r, 0)); }
     }
-    // 2) com a leitura de tudo, faz as 6 etapas e cria
-    status2(`Preparando a amostra final…`);
-    const imagens = []; for(const r of sel) imagens.push({ data: await b64(r), nome: r.nome });
-    status2(b.modo === "ia" ? `A IA juntou a leitura de ${todas.length || "todas as"} referências e está criando o universo e 3 personagens… pode levar até 2 minutos.` : `A IA juntou a leitura de ${todas.length || "todas as"} referências e está fazendo as 6 etapas… pode levar até 2 minutos.`);
-    const j = await chamaIA(code, { modo:b.modo, pedido:b.texto, notas, totalRefs:todas.length, analise: textoAnalise(await analisaRefs().catch(() => null)), estilo:b.estilo, criatividade:b.criatividade, idioma:b.idioma, imagens });
-    store.set("reverso-code", code);
-    if(j.dados){ ultimo = { id: Date.now(), data: new Date().toISOString(), briefing: b, dados: j.dados }; mostra(ultimo, true); status2("Pronto. Confira: a IA pode errar detalhes, e a originalidade não pode ser garantida.", "ok"); }
-    else if(j.bruto){ $("#out").replaceChildren(blocoTexto("Resposta da IA", String(j.bruto))); status2("A IA respondeu fora do formato; está abaixo como texto.", "ok"); }
-    else throw new Error("A resposta veio vazia.");
-  }catch(e){ status2(e.message || "Não deu certo.", "err"); }
+    const ped = MotorReverso.lerPedido(b.texto), obra = ped.obra || (b.modo === "ia" ? "Universos criados pelo app" : "Geral");
+    const perfil = MotorReverso.aprender(obra, MotorReverso.juntar(ms));
+    status2("Gerando as 6 etapas…");
+    const dados = MotorReverso.gerar(perfil, ped, { modo:b.modo, criatividade:b.criatividade, idioma:b.idioma, estilo:b.estilo, obra, semente:String(Date.now()) });
+    ultimo = { id: Date.now(), data: new Date().toISOString(), briefing: { ...b, obra }, dados };
+    mostra(ultimo, true); mostraPerfis();
+    status2(`Pronto: ${sel.length} referências medidas${perfil.analises > 1 ? `, somadas ao estilo aprendido de "${obra}" (${perfil.n} referências em ${perfil.analises} análises)` : ""}. Clique de novo para outras 3 opções de conceito.`, "ok");
+  }catch(e){ status2(/mem|alloc/i.test(String(e && e.message)) ? "O aparelho ficou sem memória. Marque menos referências." : "Não deu para analisar: " + (e && e.message || "erro"), "err"); }
   finally{ btn.disabled = false; }
 };
+mostraPerfis();
 
 /* ---------- mostrar análise ---------- */
 const S = x => x == null ? "" : String(x);
@@ -679,8 +638,8 @@ function mostra(c, novo){
   bs.onclick = () => { const l = store.get("reverso-criacoes", []); l.unshift(c); if(store.set("reverso-criacoes", l.slice(0, 60))){ bs.textContent = "Salvo"; bs.disabled = true; criacoes(); } else status2("Sem espaço no navegador. Baixe o .txt e apague criações antigas.", "err"); };
   out.append(el("div", { className:"row" }, bc, bd, bs));
   const u = d.universo_proposto;
-  if(u && u.nome){ const dl = el("dl"); [["Premissa", u.premissa], ["Mundo", u.mundo], ["Tom", u.tom]].forEach(([a, x]) => { if(x) dl.append(el("dt", { textContent:a }), el("dd", { textContent:S(x) })); }); out.append(etapa("✦", `Universo criado pela IA: ${S(u.nome)}`, el("div", { className:"conceito" }, dl))); }
-  if(arr(d.perguntas).length) out.append(etapa("?", "Perguntas da IA", el("p", { className:"note", textContent:"A IA respondeu assim mesmo, mas responder estas perguntas no briefing melhora o resultado:" }), lista(d.perguntas)));
+  if(u && u.nome){ const dl = el("dl"); [["Premissa", u.premissa], ["Mundo", u.mundo], ["Tom", u.tom]].forEach(([a, x]) => { if(x) dl.append(el("dt", { textContent:a }), el("dd", { textContent:S(x) })); }); out.append(etapa("✦", `Universo criado pelo app: ${S(u.nome)}`, el("div", { className:"conceito" }, dl))); }
+  if(arr(d.perguntas).length) out.append(etapa("?", "Perguntas para melhorar", el("p", { className:"note", textContent:"O resultado saiu assim mesmo, mas responder isto no seu pedido melhora os conceitos:" }), lista(d.perguntas)));
   const l = d.leitura || {};
   out.append(etapa("01", "Leitura da referência", el("p", { className:"label", textContent:"Observações" }), lista(l.observacoes), el("p", { className:"label", textContent:"Hipóteses" }), lista(l.hipoteses), arr(l.limitacoes).length ? el("p", { className:"label", textContent:"Limitações" }) : null, lista(l.limitacoes)));
   const dec = etapa("02", "Decomposição visual");
@@ -727,14 +686,7 @@ function criacoes(){
 }
 $("#expTudo").onclick = () => { const l = store.get("reverso-criacoes", []); if(l.length) baixar("reverso_minhas-criacoes-2026.txt", new Blob([l.map(texto).join("\n\n==========\n\n")], { type:"text/plain;charset=utf-8" })); };
 criacoes(); render();
-(async () => { // a IA do app está configurada na Vercel?
-  try{
-    if(location.protocol === "file:") return;
-    const r = await fetch("/api/status", { cache:"no-store" }); if(!r.ok) return; const j = await r.json();
-    if(j.codigo && j.chave) show($("#iaStatus"), "IA do app: configurada e pronta. Ela vê as imagens e faz a engenharia reversa sozinha.", "ok");
-    else show($("#iaStatus"), `IA do app ainda não está ligada: falta ${[!j.chave && "ANTHROPIC_API_KEY", !j.codigo && "UPLOAD_CODE"].filter(Boolean).join(" e ")} nas configurações deste projeto na Vercel (Settings → Environment Variables), depois Redeploy. Enquanto isso, use "Gerar pedido completo", que já leva a análise das imagens.`, "err");
-  }catch{}
-})();
+
 </script>
 </body>
 </html>
