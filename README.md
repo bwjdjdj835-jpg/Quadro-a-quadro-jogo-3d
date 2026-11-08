@@ -13,7 +13,7 @@ Extrator de quadros para character design: tira do vídeo as melhores imagens de
 
 Com os quadros marcados, escolha:
 
-1. **De onde vêm os quadros:** *Character design para o meu anime* (a IA aprende o estilo e cria o personagem para o seu universo) ou *Filme ou série*, realista ou animado (a IA descobre gênero, época e visual e cria um personagem original de um universo fictício).
+1. **De onde vem o personagem:** *A partir de um prompt (sem vídeo)*: você descreve ou cola um prompt e não precisa de quadros. Ou, com quadros: *Character design para o meu anime* (a IA aprende o estilo e cria o personagem para o seu universo) ou *Filme ou série*, realista ou animado (a IA descobre gênero, época e visual e cria um personagem original de um universo fictício).
 2. **Estilo do personagem:** *Igual ao vídeo*, *Anime*, *Desenho animado*, *Animação 3D* ou *Realista* (live-action). Vale para a ficha técnica e para os prompts.
 3. **O que receber:** *Ficha técnica*, *Prompt para o Gemini* ou *Os dois*.
 

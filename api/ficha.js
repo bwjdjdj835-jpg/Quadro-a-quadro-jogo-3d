@@ -72,7 +72,12 @@ function systemPrompt({ modo, saida, idioma, estilo }) {
     '- Se os quadros não bastarem para alguma parte, diga isso em "avisos" em vez de inventar com certeza.',
   ];
   const porModo =
-    modo === 'anime'
+    modo === 'texto'
+      ? [
+          'Modo PROMPT: não há imagens. O usuário descreveu o personagem com as próprias palavras (ou colou um prompt).',
+          'Crie o personagem a partir dessa descrição, completando com bom gosto o que faltar. Em "identificacao", descreva a estética e a paleta propostas; em "referencias_usadas", diga o que você completou por conta própria.',
+        ]
+      : modo === 'anime'
       ? [
           'Modo ANIME: o usuário tem um anime próprio. Os quadros mostram character design (de um vídeo de design de personagem, de um anime ou de arte de referência).',
           'Identifique o estilo de traço, as proporções, a paleta e o tipo de roupa. Depois crie o personagem para o universo do usuário (nome, descrição e papel vêm na mensagem), mantendo coerência com esse universo.',
@@ -128,12 +133,14 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'grande' });
   }
 
-  const modo = b.modo === 'anime' ? 'anime' : 'filme';
+  const modo = ['anime', 'texto'].includes(b.modo) ? b.modo : 'filme';
   const saida = ['ficha', 'gemini', 'ambos'].includes(b.saida) ? b.saida : 'ambos';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
   const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'video';
   const imgs = Array.isArray(b.imagens) ? b.imagens.slice(0, MAX_IMAGES) : [];
-  if (!imgs.length) return res.status(400).json({ error: 'sem_imagens' });
+  const texto = clip(b.texto, 3000);
+  if (modo === 'texto' && !texto) return res.status(400).json({ error: 'sem_texto' });
+  if (modo !== 'texto' && !imgs.length) return res.status(400).json({ error: 'sem_imagens' });
 
   const content = [];
   let n = 0;
@@ -148,13 +155,14 @@ export default async function handler(req, res) {
   const u = b.universo || {};
   const p = b.personagem || {};
   const pedido = [
-    `Modo: ${modo === 'anime' ? 'anime do usuário' : 'filme/série como referência'}.`,
+    `Modo: ${modo === 'anime' ? 'anime do usuário' : modo === 'texto' ? 'a partir do prompt do usuário, sem imagens' : 'filme/série como referência'}.`,
+    texto ? `Prompt / descrição do usuário: ${texto}` : '',
     u.nome ? `Universo: ${clip(u.nome, 80)}.` : '',
     u.descricao ? `Descrição do universo: ${clip(u.descricao, 900)}` : '',
     p.nome ? `Nome do personagem (o usuário já escolheu): ${clip(p.nome, 80)}.` : '',
     p.funcao ? `Papel do personagem: ${clip(p.funcao, 300)}` : '',
     p.notas ? `Observações do usuário: ${clip(p.notas, 900)}` : '',
-    `Foram enviados ${n} quadros, na ordem. Crie o personagem e responda no JSON combinado.`,
+    n ? `Foram enviados ${n} quadros, na ordem. Crie o personagem e responda no JSON combinado.` : 'Crie o personagem e responda no JSON combinado.',
   ]
     .filter(Boolean)
     .join('\n');

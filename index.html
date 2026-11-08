@@ -221,6 +221,7 @@ details.sharebox:not([open]){gap:0}
       <span class="label">1. De onde vêm os quadros</span>
       <div class="presets" id="modoBox">
         <button class="preset" type="button" data-modo="anime" aria-pressed="true"><b>Character design para o meu anime</b><small>O vídeo é de character design ou de anime. A IA aprende o estilo e cria o personagem para um dos seus universos.</small></button>
+        <button class="preset" type="button" data-modo="texto" aria-pressed="false"><b>A partir de um prompt (sem vídeo)</b><small>Você descreve o personagem ou cola um prompt seu. Não precisa de vídeo nem de quadros.</small></button>
         <button class="preset" type="button" data-modo="filme" aria-pressed="false"><b>Filme ou série</b><small>Live-action (realista) ou animado (anime, desenho, 3D). A IA descobre do que o vídeo se trata (gênero, época, visual) e cria um personagem original de um universo fictício.</small></button>
       </div>
     </div>
@@ -252,6 +253,7 @@ details.sharebox:not([open]){gap:0}
       <div class="field"><label class="label" for="cIdioma">Idioma dos prompts</label><select id="cIdioma"><option value="en">Inglês</option><option value="pt">Português</option></select></div>
     </div>
     <div class="field"><label class="label" for="uniDesc">Como é o universo (mundo, época, clima, regras)</label><textarea id="uniDesc" placeholder="Quanto mais você contar, mais o personagem combina com o seu mundo. Fica salvo neste aparelho."></textarea></div>
+    <div class="field" id="cTextoBox" hidden><label class="label" for="cTexto">Seu prompt ou descrição do personagem</label><textarea id="cTexto" rows="6" placeholder="Ex.: guerreira de 20 anos, cabelo branco curto, cicatriz no olho esquerdo, jaqueta de couro vermelha, usa poder de gelo, vive numa cidade futurista chuvosa"></textarea></div>
     <div class="field"><label class="label" for="perNotas">O que você quer neste personagem (opcional)</label><textarea id="perNotas" placeholder="Ex.: jovem, cicatriz no olho, roupa de viajante, cores quentes"></textarea></div>
 
     <div class="sharebox destaque">
@@ -837,29 +839,36 @@ const ESTILOS = {
 const CAI_MAX = 6;
 function cPress(box, attr, val){ document.querySelectorAll(box+" .preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset[attr]===val))); }
 function cUpdate(){
-  $("#uniLabel").textContent = cModo==="anime" ? "Universo do anime" : "Universo fictício (opcional)";
+  $("#uniLabel").textContent = cModo==="anime" ? "Universo do anime" : cModo==="texto" ? "Universo (opcional)" : "Universo fictício (opcional)";
+  $("#cTextoBox").hidden = cModo!=="texto"; cInfo();
   $("#uniNome").placeholder = cModo==="anime" ? "Ex.: nome do seu universo" : "Ex.: um mundo novo inspirado no filme";
   try{ localStorage.setItem("cModo",cModo); localStorage.setItem("cSaida",cSaida); localStorage.setItem("cEstilo",cEstilo); }catch{}
 }
 document.querySelectorAll("#modoBox .preset").forEach(b=>b.addEventListener("click",()=>{ cModo=b.dataset.modo; cPress("#modoBox","modo",cModo); cUpdate(); }));
 document.querySelectorAll("#estiloBox .preset").forEach(b=>b.addEventListener("click",()=>{ cEstilo=b.dataset.estilo; cPress("#estiloBox","estilo",cEstilo); cUpdate(); }));
 document.querySelectorAll("#saidaBox .preset").forEach(b=>b.addEventListener("click",()=>{ cSaida=b.dataset.saida; cPress("#saidaBox","saida",cSaida); cUpdate(); }));
+try{ const t=localStorage.getItem("cTexto"); if(t) $("#cTexto").value=t; }catch{}
+$("#cTexto").addEventListener("input",()=>{ try{ localStorage.setItem("cTexto",$("#cTexto").value.slice(0,3000)); }catch{} });
 $("#cIdioma").addEventListener("change",()=>{ try{ localStorage.setItem("cIdioma",$("#cIdioma").value); }catch{} });
 
 function cFrames(){ const sel=frames.filter(f=>f.sel); if(sel.length<=CAI_MAX) return sel; const out=[]; for(let i=0;i<CAI_MAX;i++) out.push(sel[Math.round(i*(sel.length-1)/(CAI_MAX-1))]); return out; }
-function cInfo(){ const n=frames.filter(f=>f.sel).length; $("#cInfo").textContent = n ? `${n} marcados · a IA do app lê ${Math.min(n,CAI_MAX)}` : "marque quadros no passo 03"; $("#cAi").disabled = !n; }
+function cInfo(){ const n=frames.filter(f=>f.sel).length;
+  if(cModo==="texto"){ $("#cInfo").textContent = "a partir do seu prompt, sem vídeo"; $("#cAi").disabled = false; return; }
+  $("#cInfo").textContent = n ? `${n} marcados · a IA do app lê ${Math.min(n,CAI_MAX)}` : "marque quadros no passo 03"; $("#cAi").disabled = !n; }
 
 /* universos usados ficam salvos neste aparelho (até 8) */
 function uniLoad(){ try{ const u=JSON.parse(localStorage.getItem("universos2")||"[]"); return Array.isArray(u) ? u.filter(x=>x && typeof x.n==="string") : []; }catch{ return []; } }
 function uniList(){ $("#uniNames").replaceChildren(...uniLoad().map(x=>Object.assign(document.createElement("option"),{value:x.n}))); }
 function uniSave(){ const n=$("#uniNome").value.trim().slice(0,80); if(!n) return; const d=$("#uniDesc").value.trim().slice(0,900); const u=uniLoad().filter(x=>x.n!==n); u.push({n,d}); while(u.length>8) u.shift(); try{ localStorage.setItem("universos2",JSON.stringify(u)); }catch{} uniList(); }
 $("#uniNome").addEventListener("input",()=>{ const n=$("#uniNome").value.trim(), x=uniLoad().find(y=>y.n===n); if(x) $("#uniDesc").value=x.d; });
-function cVals(){ return { uni:$("#uniNome").value.trim(), desc:$("#uniDesc").value.trim(), nome:$("#perNome").value.trim(), funcao:$("#perFuncao").value.trim(), notas:$("#perNotas").value.trim(), idioma:$("#cIdioma").value }; }
+function cVals(){ return { uni:$("#uniNome").value.trim(), desc:$("#uniDesc").value.trim(), nome:$("#perNome").value.trim(), funcao:$("#perFuncao").value.trim(), notas:$("#perNotas").value.trim(), texto:$("#cTexto").value.trim(), idioma:$("#cIdioma").value }; }
 
 /* Opção B: monta o pedido para colar no Gemini (sem servidor, sem chave) */
 function cPedido(){
   const v=cVals(), sel=frames.filter(f=>f.sel), L=[], pt=v.idioma==="pt";
-  if(cModo==="anime"){
+  if(cModo==="texto"){
+    L.push("Você é um character designer sênior. Crie um personagem ORIGINAL a partir da descrição abaixo (não há imagens de referência). Complete com bom gosto o que eu não disse, mantendo tudo coerente. Não copie personagens que já existem.");
+  } else if(cModo==="anime"){
     L.push("Você é um character designer sênior. As imagens anexadas são quadros de um vídeo de character design (ou de anime) que eu gravei. Use-as como referência: traço, proporções, roupas e paleta. Não copie personagens que já existem.");
   } else {
     L.push("Você é diretor de arte e character designer sênior. As imagens anexadas são quadros de um filme ou série que eu gravei (pode ser live-action ou animado). Primeiro descubra do que se trata: se é realista ou animado (anime, desenho, 3D), gênero, época, ambientação, fotografia, paleta e figurino. Depois crie um personagem ORIGINAL de um universo fictício novo, inspirado nesse visual.");
@@ -870,15 +879,16 @@ function cPedido(){
   if(v.nome || v.funcao || v.notas){ L.push("PERSONAGEM"); if(v.nome) L.push(`Nome: ${v.nome}`); if(v.funcao) L.push(`Papel: ${v.funcao}`); if(v.notas) L.push(`Pedidos meus: ${v.notas}`); L.push(""); }
   const cont = {}; const names = [];
   sel.forEach(f=>{ const k=(f.label||"").trim(); if(!k) return; if(!cont[k]){ cont[k]=0; names.push(k); } cont[k]++; });
-  L.push(`Anexei ${sel.length||"vários"} quadros${names.length?`; os nomes que dei a eles: ${names.map(k=>`${k} (${cont[k]})`).join(", ")}`:""}.`, "");
+  if(cModo==="texto"){ L.push("MEU PROMPT / DESCRIÇÃO DO PERSONAGEM", v.texto || "(não escrevi nada: crie a partir do universo, do nome e do papel acima)", ""); }
+  else L.push(`Anexei ${sel.length||"vários"} quadros${names.length?`; os nomes que dei a eles: ${names.map(k=>`${k} (${cont[k]})`).join(", ")}`:""}.`, "");
   if(cSaida!=="gemini"){
     L.push("ENTREGUE A FICHA TÉCNICA, em português, nesta ordem:",
-      "1. Do que se trata o vídeo: se é realista ou animado (anime, desenho, 3D), o estilo visual e 5 a 7 cores em código hexadecimal.",
+      cModo==="texto" ? "1. O estilo visual do personagem e 5 a 7 cores em código hexadecimal." : "1. Do que se trata o vídeo: se é realista ou animado (anime, desenho, 3D), o estilo visual e 5 a 7 cores em código hexadecimal.",
       `   Estilo escolhido para o personagem: ${ESTILOS[cEstilo].nome}.`,
       "2. O personagem: nome, papel, idade aparente, silhueta e proporções (altura em cabeças), rosto, cabelo, roupas, acessórios, cores e personalidade visual.",
       "3. Vistas: frente, perfil, costas e três quartos.",
       "4. Seis poses e seis expressões pensadas para ele.",
-      "5. Quais quadros você usou para cada característica.",
+      cModo==="texto" ? "5. O que você completou por conta própria (o que eu não tinha pedido)." : "5. Quais quadros você usou para cada característica.",
       "6. O que ficou incerto e eu devo conferir.", "");
   }
   if(cSaida!=="ficha"){
@@ -890,7 +900,7 @@ function cPedido(){
       `Em cada prompt deixe claro o estilo: ${pt?ESTILOS[cEstilo].pt:ESTILOS[cEstilo].en}.`,
       "Em cada prompt peça para manter exatamente o mesmo personagem.", "");
   }
-  L.push("Seja concreto e visual: formas, proporções, materiais e cores. Se algo não der para ver nos quadros, diga em vez de inventar.");
+  L.push(cModo==="texto" ? "Seja concreto e visual: formas, proporções, materiais e cores." : "Seja concreto e visual: formas, proporções, materiais e cores. Se algo não der para ver nos quadros, diga em vez de inventar.");
   return L.join("\n");
 }
 
@@ -956,6 +966,7 @@ $("#cMontar").addEventListener("click",()=>{
   uniSave();
   const nSel=frames.filter(f=>f.sel).length;
   const out=$("#cout"); out.replaceChildren(promptBlock("Prompt para colar no Gemini", cPedido()));
+  if(cModo==="texto"){ show($("#cst"), $("#cTexto").value.trim() ? "Prompt pronto. Clique em Copiar e cole no Gemini. Não precisa anexar fotos." : "Prompt pronto, mas o campo do seu prompt está vazio. Escreva a descrição do personagem para um resultado melhor.", $("#cTexto").value.trim() ? "ok" : ""); out.scrollIntoView({behavior:"smooth", block:"start"}); return; }
   show($("#cst"), nSel ? "Prompt pronto. Clique em Copiar, cole no Gemini e anexe as fotos marcadas (fotos soltas ou folha de contato do passo 05)." : "Prompt pronto. Atenção: você ainda não marcou quadros no passo 03. Marque os do personagem para anexar as fotos certas no Gemini.", nSel ? "ok" : "");
   out.scrollIntoView({behavior:"smooth", block:"start"});
 });
@@ -970,6 +981,8 @@ const CAI_ERR = {
   ocupado:"A IA está ocupada agora. Espere um minuto e tente de novo.",
   grande:"As imagens ficaram grandes demais. Marque menos quadros ou use \"Tamanho máx.\" 1280 px e extraia de novo.",
   imagem:"Um dos quadros não foi aceito. Extraia de novo e tente outra vez.",
+  sem_texto:"Escreva o seu prompt ou a descrição do personagem.",
+  sem_imagens:"Marque pelo menos um quadro no passo 03.",
   rede:"O servidor não conseguiu falar com a IA. Tente de novo.",
   api:"A IA devolveu um erro. Tente de novo em instantes."
 };
@@ -983,21 +996,23 @@ async function smallB64(f){
 }
 try{ const c = localStorage.getItem("uploadCode"); if(c) $("#aiCode").value = c; }catch{}
 $("#cAi").addEventListener("click", async()=>{
-  const st=$("#cst"), sel=cFrames(); if(!sel.length){ show(st,"Marque pelo menos um quadro no passo 03.","err"); return; }
+  const st=$("#cst"), sel = cModo==="texto" ? [] : cFrames();
+  if(cModo!=="texto" && !sel.length){ show(st,"Marque pelo menos um quadro no passo 03.","err"); return; }
+  if(cModo==="texto" && !$("#cTexto").value.trim()){ show(st,"Escreva o seu prompt ou a descrição do personagem.","err"); $("#cTexto").focus(); return; }
   const code=$("#aiCode").value.trim(); if(!code){ show(st,"Digite o código de envio.","err"); $("#aiCode").focus(); return; }
   const btn=$("#cAi"); btn.disabled=true; $("#cout").replaceChildren(); uniSave();
   try{
     show(st,`Preparando ${sel.length} quadros…`);
     const imagens=[]; for(const f of sel) imagens.push({ data: await smallB64(f), nome: f.label });
-    show(st,"A IA está olhando os quadros e criando o personagem… pode levar até 1 minuto.");
+    show(st, cModo==="texto" ? "A IA está criando o personagem a partir do seu prompt… pode levar até 1 minuto." : "A IA está olhando os quadros e criando o personagem… pode levar até 1 minuto.");
     const v=cVals();
     const r = await fetch("/api/ficha", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" },
-      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, imagens }) });
+      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, texto:v.texto, imagens }) });
     let j=null; try{ j=await r.json(); }catch{}
     if(r.status===404) throw new Error("A IA do app só funciona no site publicado, não no computador local.");
     if(!r.ok) throw new Error(CAI_ERR[j&&j.error] || `Não deu certo (erro ${r.status}).`);
     try{ localStorage.setItem("uploadCode", code); }catch{}
-    if(j.dados){ cRender(j.dados); show(st,`Pronto. A IA leu ${sel.length} quadros${frames.filter(f=>f.sel).length>sel.length?` (de ${frames.filter(f=>f.sel).length} marcados)`:""}. Confira antes de usar: ela pode errar detalhes.`,"ok"); }
+    if(j.dados){ cRender(j.dados); show(st, cModo==="texto" ? "Pronto. Confira antes de usar: a IA pode errar detalhes." : `Pronto. A IA leu ${sel.length} quadros${frames.filter(f=>f.sel).length>sel.length?` (de ${frames.filter(f=>f.sel).length} marcados)`:""}. Confira antes de usar: ela pode errar detalhes.`,"ok"); }
     else if(j.bruto){ $("#cout").replaceChildren(promptBlock("Resposta da IA", String(j.bruto))); show(st,"A IA respondeu fora do formato esperado; está abaixo como texto.","ok"); }
     else throw new Error("A resposta veio vazia. Tente de novo.");
   }catch(e){ show(st, e.message || "Não deu certo.", "err"); }
@@ -1007,7 +1022,7 @@ $("#cAi").addEventListener("click", async()=>{
 (function initCriar(){
   try{ const m=localStorage.getItem("cModo"), s=localStorage.getItem("cSaida"), i=localStorage.getItem("cIdioma");
     const e=localStorage.getItem("cEstilo"); if(ESTILOS[e]) cEstilo=e;
-    if(m==="anime"||m==="filme") cModo=m; if(["ficha","gemini","ambos"].includes(s)) cSaida=s; if(i==="pt"||i==="en") $("#cIdioma").value=i; }catch{}
+    if(m==="anime"||m==="filme"||m==="texto") cModo=m; if(["ficha","gemini","ambos"].includes(s)) cSaida=s; if(i==="pt"||i==="en") $("#cIdioma").value=i; }catch{}
   cPress("#modoBox","modo",cModo); cPress("#saidaBox","saida",cSaida); cPress("#estiloBox","estilo",cEstilo); uniList(); cUpdate(); cInfo(); $("#cMontar").disabled=false;
 })();
 
