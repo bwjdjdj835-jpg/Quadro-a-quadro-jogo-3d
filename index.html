@@ -215,12 +215,23 @@ details.sharebox:not([open]){gap:0}
       <span class="label">1. De onde vêm os quadros</span>
       <div class="presets" id="modoBox">
         <button class="preset" type="button" data-modo="anime" aria-pressed="true"><b>Character design para o meu anime</b><small>O vídeo é de character design ou de anime. A IA aprende o estilo e cria o personagem para um dos seus universos.</small></button>
-        <button class="preset" type="button" data-modo="filme" aria-pressed="false"><b>Filme ou série</b><small>A IA descobre do que o vídeo se trata (gênero, época, visual) e cria um personagem original de um universo fictício.</small></button>
+        <button class="preset" type="button" data-modo="filme" aria-pressed="false"><b>Filme ou série</b><small>Live-action (realista) ou animado (anime, desenho, 3D). A IA descobre do que o vídeo se trata (gênero, época, visual) e cria um personagem original de um universo fictício.</small></button>
       </div>
     </div>
 
     <div class="opt">
-      <span class="label">2. O que você quer receber</span>
+      <span class="label">2. Estilo do personagem (como ele vai ser desenhado)</span>
+      <div class="presets" id="estiloBox">
+        <button class="preset" type="button" data-estilo="video" aria-pressed="true"><b>Igual ao vídeo</b><small>A IA usa o mesmo estilo dos quadros, seja realista, anime ou desenho.</small></button>
+        <button class="preset" type="button" data-estilo="anime" aria-pressed="false"><b>Anime</b><small>Traço de anime japonês: olhos expressivos, cabelo em mechas, cel-shading.</small></button>
+        <button class="preset" type="button" data-estilo="desenho" aria-pressed="false"><b>Desenho animado</b><small>Cartoon 2D: formas simples, contorno forte, cores chapadas.</small></button>
+        <button class="preset" type="button" data-estilo="3d" aria-pressed="false"><b>Animação 3D</b><small>Estilo de filme de animação 3D: volumes suaves, textura e luz de cinema.</small></button>
+        <button class="preset" type="button" data-estilo="realista" aria-pressed="false"><b>Realista</b><small>Live-action: pessoa de verdade, fotografia de cinema, roupas e pele realistas.</small></button>
+      </div>
+    </div>
+
+    <div class="opt">
+      <span class="label">3. O que você quer receber</span>
       <div class="presets" id="saidaBox">
         <button class="preset" type="button" data-saida="ficha" aria-pressed="false"><b>Ficha técnica</b><small>Rosto, roupas, proporções, cores, vistas, poses e expressões, escritos em detalhe.</small></button>
         <button class="preset" type="button" data-saida="gemini" aria-pressed="false"><b>Prompt para o Gemini</b><small>Prompts prontos para gerar a folha de personagem, as poses e as expressões.</small></button>
@@ -786,15 +797,23 @@ $("#copyAll").addEventListener("click", ()=>{ const rows = [...document.querySel
 $("#copyUrls").addEventListener("click", ()=>copyText([...document.querySelectorAll("#linkItems .lrow")].map(r=>r.dataset.urls).join("\n"), "Links das imagens copiados, um por linha."));
 
 /* ---------- criar personagem: ficha técnica e prompt para o Gemini ---------- */
-let cModo = "anime", cSaida = "ambos";
+let cModo = "anime", cSaida = "ambos", cEstilo = "video";
+const ESTILOS = {
+  video: { nome:"Igual ao vídeo", pt:"no mesmo estilo visual dos quadros (se forem realistas, realista; se forem anime ou desenho, nesse traço)", en:"in the same visual style as the reference frames" },
+  anime: { nome:"Anime", pt:"em estilo anime japonês: olhos expressivos, cabelo em mechas, cel-shading e contorno limpo", en:"in Japanese anime style, cel-shading, clean lineart, expressive eyes" },
+  desenho: { nome:"Desenho animado", pt:"em estilo desenho animado 2D (cartoon): formas simples, contorno forte e cores chapadas", en:"in 2D cartoon style, bold outlines, simple shapes, flat colors" },
+  "3d": { nome:"Animação 3D", pt:"em estilo de filme de animação 3D: volumes suaves, materiais com textura e luz de cinema", en:"in 3D animated feature film style, soft stylized volumes, textured materials, cinematic lighting" },
+  realista: { nome:"Realista", pt:"realista, como live-action: pessoa de verdade, fotografia de cinema, pele, tecidos e luz realistas (rosto original, não de um ator)", en:"photorealistic live-action style, cinematic photography, realistic skin and fabrics, original face (not a real actor)" }
+};
 const CAI_MAX = 6;
 function cPress(box, attr, val){ document.querySelectorAll(box+" .preset").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset[attr]===val))); }
 function cUpdate(){
   $("#uniLabel").textContent = cModo==="anime" ? "Universo do anime" : "Universo fictício (opcional)";
   $("#uniNome").placeholder = cModo==="anime" ? "Ex.: nome do seu universo" : "Ex.: um mundo novo inspirado no filme";
-  try{ localStorage.setItem("cModo",cModo); localStorage.setItem("cSaida",cSaida); }catch{}
+  try{ localStorage.setItem("cModo",cModo); localStorage.setItem("cSaida",cSaida); localStorage.setItem("cEstilo",cEstilo); }catch{}
 }
 document.querySelectorAll("#modoBox .preset").forEach(b=>b.addEventListener("click",()=>{ cModo=b.dataset.modo; cPress("#modoBox","modo",cModo); cUpdate(); }));
+document.querySelectorAll("#estiloBox .preset").forEach(b=>b.addEventListener("click",()=>{ cEstilo=b.dataset.estilo; cPress("#estiloBox","estilo",cEstilo); cUpdate(); }));
 document.querySelectorAll("#saidaBox .preset").forEach(b=>b.addEventListener("click",()=>{ cSaida=b.dataset.saida; cPress("#saidaBox","saida",cSaida); cUpdate(); }));
 $("#cIdioma").addEventListener("change",()=>{ try{ localStorage.setItem("cIdioma",$("#cIdioma").value); }catch{} });
 
@@ -812,12 +831,12 @@ function cVals(){ return { uni:$("#uniNome").value.trim(), desc:$("#uniDesc").va
 function cPedido(){
   const v=cVals(), sel=frames.filter(f=>f.sel), L=[], pt=v.idioma==="pt";
   if(cModo==="anime"){
-    L.push("Você é um character designer sênior de anime. As imagens anexadas são quadros de um vídeo de character design (ou de anime) que eu gravei. Use-as só como referência de estilo: traço, proporções, roupas e paleta. Não copie personagens que já existem.");
+    L.push("Você é um character designer sênior. As imagens anexadas são quadros de um vídeo de character design (ou de anime) que eu gravei. Use-as como referência: traço, proporções, roupas e paleta. Não copie personagens que já existem.");
   } else {
-    L.push("Você é diretor de arte e character designer sênior. As imagens anexadas são quadros de um filme ou série que eu gravei. Primeiro descubra do que se trata (gênero, época, ambientação, fotografia, paleta e figurino). Depois crie um personagem ORIGINAL de um universo fictício novo, inspirado nesse visual.");
+    L.push("Você é diretor de arte e character designer sênior. As imagens anexadas são quadros de um filme ou série que eu gravei (pode ser live-action ou animado). Primeiro descubra do que se trata: se é realista ou animado (anime, desenho, 3D), gênero, época, ambientação, fotografia, paleta e figurino. Depois crie um personagem ORIGINAL de um universo fictício novo, inspirado nesse visual.");
     L.push("Não recrie personagens da obra, não copie o rosto de nenhum ator e não identifique pessoas pelo rosto.");
   }
-  L.push("");
+  L.push("", `ESTILO DO PERSONAGEM: ${ESTILOS[cEstilo].nome}. Desenhe e descreva o personagem ${ESTILOS[cEstilo].pt}.`, "");
   if(v.uni || v.desc){ L.push(`UNIVERSO${v.uni?`: ${v.uni}`:""}`); if(v.desc) L.push(v.desc); L.push(""); }
   if(v.nome || v.funcao || v.notas){ L.push("PERSONAGEM"); if(v.nome) L.push(`Nome: ${v.nome}`); if(v.funcao) L.push(`Papel: ${v.funcao}`); if(v.notas) L.push(`Pedidos meus: ${v.notas}`); L.push(""); }
   const cont = {}; const names = [];
@@ -825,7 +844,8 @@ function cPedido(){
   L.push(`Anexei ${sel.length||"vários"} quadros${names.length?`; os nomes que dei a eles: ${names.map(k=>`${k} (${cont[k]})`).join(", ")}`:""}.`, "");
   if(cSaida!=="gemini"){
     L.push("ENTREGUE A FICHA TÉCNICA, em português, nesta ordem:",
-      "1. Do que se trata o vídeo e o estilo visual, com 5 a 7 cores em código hexadecimal.",
+      "1. Do que se trata o vídeo: se é realista ou animado (anime, desenho, 3D), o estilo visual e 5 a 7 cores em código hexadecimal.",
+      `   Estilo escolhido para o personagem: ${ESTILOS[cEstilo].nome}.`,
       "2. O personagem: nome, papel, idade aparente, silhueta e proporções (altura em cabeças), rosto, cabelo, roupas, acessórios, cores e personalidade visual.",
       "3. Vistas: frente, perfil, costas e três quartos.",
       "4. Seis poses e seis expressões pensadas para ele.",
@@ -838,6 +858,7 @@ function cPedido(){
       "b) folha com as 6 poses;",
       "c) folha com as 6 expressões;",
       "d) ilustração do personagem em cena.",
+      `Em cada prompt deixe claro o estilo: ${pt?ESTILOS[cEstilo].pt:ESTILOS[cEstilo].en}.`,
       "Em cada prompt peça para manter exatamente o mesmo personagem.", "");
   }
   L.push("Seja concreto e visual: formas, proporções, materiais e cores. Se algo não der para ver nos quadros, diga em vez de inventar.");
@@ -846,7 +867,7 @@ function cPedido(){
 
 /* mostrar resultados (tudo montado com textContent, nada de HTML vindo da IA) */
 function mk(tag, props, ...kids){ const e=Object.assign(document.createElement(tag), props||{}); e.append(...kids); return e; }
-const ROT = { tipo_de_video:"Tipo de vídeo", genero:"Gênero", epoca_ambientacao:"Época e lugar", estetica:"Estética", paleta:"Paleta", nome:"Nome", papel:"Papel", idade_aparente:"Idade aparente", silhueta_proporcoes:"Silhueta e proporções", rosto:"Rosto", cabelo:"Cabelo", roupas:"Roupas", acessorios:"Acessórios", cores:"Cores", personalidade_visual:"Personalidade visual" };
+const ROT = { tipo_de_video:"Tipo de vídeo", realista_ou_animado:"Realista ou animado", estilo_do_personagem:"Estilo do personagem", genero:"Gênero", epoca_ambientacao:"Época e lugar", estetica:"Estética", paleta:"Paleta", nome:"Nome", papel:"Papel", idade_aparente:"Idade aparente", silhueta_proporcoes:"Silhueta e proporções", rosto:"Rosto", cabelo:"Cabelo", roupas:"Roupas", acessorios:"Acessórios", cores:"Cores", personalidade_visual:"Personalidade visual" };
 const PROMPT_NOMES = { folha_de_personagem:"Prompt · folha de personagem", poses:"Prompt · folha de poses", expressoes:"Prompt · folha de expressões", cena:"Prompt · cena" };
 function rot(k){ return ROT[k] || String(k).replace(/_/g," ").replace(/^./,c=>c.toUpperCase()); }
 function valNode(k, v){
@@ -942,7 +963,7 @@ $("#cAi").addEventListener("click", async()=>{
     show(st,"A IA está olhando os quadros e criando o personagem… pode levar até 1 minuto.");
     const v=cVals();
     const r = await fetch("/api/ficha", { method:"POST", headers:{ "x-upload-code":code, "content-type":"application/json" },
-      body: JSON.stringify({ modo:cModo, saida:cSaida, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, imagens }) });
+      body: JSON.stringify({ modo:cModo, saida:cSaida, estilo:cEstilo, idioma:v.idioma, universo:{ nome:v.uni, descricao:v.desc }, personagem:{ nome:v.nome, funcao:v.funcao, notas:v.notas }, imagens }) });
     let j=null; try{ j=await r.json(); }catch{}
     if(r.status===404) throw new Error("A IA do app só funciona no site publicado, não no computador local.");
     if(!r.ok) throw new Error(CAI_ERR[j&&j.error] || `Não deu certo (erro ${r.status}).`);
@@ -956,8 +977,9 @@ $("#cAi").addEventListener("click", async()=>{
 
 (function initCriar(){
   try{ const m=localStorage.getItem("cModo"), s=localStorage.getItem("cSaida"), i=localStorage.getItem("cIdioma");
+    const e=localStorage.getItem("cEstilo"); if(ESTILOS[e]) cEstilo=e;
     if(m==="anime"||m==="filme") cModo=m; if(["ficha","gemini","ambos"].includes(s)) cSaida=s; if(i==="pt"||i==="en") $("#cIdioma").value=i; }catch{}
-  cPress("#modoBox","modo",cModo); cPress("#saidaBox","saida",cSaida); uniList(); cUpdate(); cInfo(); $("#cMontar").disabled=false;
+  cPress("#modoBox","modo",cModo); cPress("#saidaBox","saida",cSaida); cPress("#estiloBox","estilo",cEstilo); uniList(); cUpdate(); cInfo(); $("#cMontar").disabled=false;
 })();
 
 /* ---------- utilidades ---------- */

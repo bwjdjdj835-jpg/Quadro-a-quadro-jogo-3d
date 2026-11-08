@@ -16,11 +16,21 @@ async function readJson(req) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
+const ESTILOS = {
+  video: 'no mesmo estilo visual dos quadros (realista se forem realistas; anime, desenho ou 3D se forem animados)',
+  anime: 'em estilo anime japonês (cel-shading, contorno limpo, olhos expressivos)',
+  desenho: 'em estilo desenho animado 2D (cartoon: formas simples, contorno forte, cores chapadas)',
+  '3d': 'em estilo de filme de animação 3D (volumes suaves, materiais com textura, luz de cinema)',
+  realista: 'realista, como live-action (fotografia de cinema, pele e tecidos realistas, rosto original que não é de nenhum ator)',
+};
+
 const clip = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 const ESQUEMA = `{
   "identificacao": {
     "tipo_de_video": "do que se trata o vídeo (filme, série, anime, desenho, jogo, vídeo de character design...)",
+    "realista_ou_animado": "live-action (realista) ou animado (anime, desenho 2D, 3D)",
+    "estilo_do_personagem": "o estilo em que o personagem foi criado",
     "genero": "gênero e clima",
     "epoca_ambientacao": "época e lugar mostrados",
     "estetica": "estilo visual: traço, luz, textura, tipo de figurino",
@@ -51,7 +61,7 @@ const ESQUEMA = `{
   "avisos": ["o que ficou incerto ou o que o usuário deve conferir"]
 }`;
 
-function systemPrompt({ modo, saida, idioma }) {
+function systemPrompt({ modo, saida, idioma, estilo }) {
   const comum = [
     'Você é um diretor de arte e character designer sênior. Você recebe quadros extraídos de um vídeo que o usuário gravou e usa SÓ como referência visual de estilo.',
     'Regras que valem sempre:',
@@ -68,7 +78,7 @@ function systemPrompt({ modo, saida, idioma }) {
           'Identifique o estilo de traço, as proporções, a paleta e o tipo de roupa. Depois crie o personagem para o universo do usuário (nome, descrição e papel vêm na mensagem), mantendo coerência com esse universo.',
         ]
       : [
-          'Modo FILME/SÉRIE: os quadros vêm de um filme ou série. Identifique gênero, época, ambientação, fotografia, paleta e figurino.',
+          'Modo FILME/SÉRIE: os quadros vêm de um filme ou série, que pode ser live-action (realista) ou animado (anime, desenho, 3D). Diga qual é. Identifique gênero, época, ambientação, fotografia, paleta e figurino.',
           'Depois crie um personagem original de um universo fictício novo, inspirado nessa estética (não passado dentro da obra original). Se o usuário descreveu o universo, use a descrição dele.',
         ];
   const porSaida =
@@ -84,6 +94,7 @@ function systemPrompt({ modo, saida, idioma }) {
   return [
     ...comum,
     ...porModo,
+    `ESTILO DO PERSONAGEM escolhido pelo usuário: crie, descreva e escreva os prompts com o personagem ${ESTILOS[estilo] || ESTILOS.video}. Todos os prompts precisam dizer esse estilo com clareza.`,
     porSaida,
     lang,
     'Responda SOMENTE com um objeto JSON válido, sem texto antes ou depois e sem blocos de código, neste formato:',
@@ -120,6 +131,7 @@ export default async function handler(req, res) {
   const modo = b.modo === 'anime' ? 'anime' : 'filme';
   const saida = ['ficha', 'gemini', 'ambos'].includes(b.saida) ? b.saida : 'ambos';
   const idioma = b.idioma === 'pt' ? 'pt' : 'en';
+  const estilo = Object.hasOwn(ESTILOS, b.estilo) ? b.estilo : 'video';
   const imgs = Array.isArray(b.imagens) ? b.imagens.slice(0, MAX_IMAGES) : [];
   if (!imgs.length) return res.status(400).json({ error: 'sem_imagens' });
 
@@ -160,7 +172,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 4000,
-        system: systemPrompt({ modo, saida, idioma }),
+        system: systemPrompt({ modo, saida, idioma, estilo }),
         messages: [{ role: 'user', content }],
       }),
     });
