@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pedidor e Produtor: livro técnico</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f5f4ef;color:#222}
+header{padding:16px 24px;background:#2d4a2b;color:#fff}
+header h1{margin:0;font-size:20px}
+main{padding:16px 24px;display:grid;gap:16px;grid-template-columns:1fr 1fr}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+section{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 3px #0002}
+section.ativo{outline:3px solid #c98a1b}
+h2{margin:0 0 4px;font-size:17px}
+textarea,input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:6px}
+textarea{min-height:150px;font:13px/1.4 ui-monospace,monospace;margin-top:8px}
+button{padding:8px 14px;border:0;border-radius:6px;background:#2d4a2b;color:#fff;cursor:pointer;margin:8px 6px 0 0}
+button:disabled{background:#aaa;cursor:default}
+button.sec{background:#777}
+.bar{grid-column:1/-1;background:#fff;border-radius:10px;padding:14px;display:grid;gap:8px}
+.log{grid-column:1/-1;background:#fff;border-radius:10px;padding:14px}
+.entrada{border-left:4px solid #2d4a2b;padding:6px 10px;margin:8px 0;white-space:pre-wrap;font-size:14px}
+.entrada.pedidor{border-color:#c98a1b}
+small{color:#666}
+</style>
+</head>
+<body>
+<header><h1>Pedidor × Produtor: livro técnico</h1></header>
+<main>
+  <div class="bar">
+    <label>Tema do livro<input id="tema"></label>
+    <label>Critérios de "perfeito" (um por linha)
+      <textarea id="criterios" style="min-height:90px"></textarea>
+    </label>
+    <div><b id="rodada"></b> · máximo de rodadas <input id="max" type="number" min="1" value="5" style="width:80px"> · <span id="status"></span></div>
+    <div>
+      <button id="zerar" class="sec">Zerar histórico</button>
+      <button id="exportar">Exportar .md</button>
+    </div>
+  </div>
+
+  <section id="secP">
+    <h2>Pedidor</h2>
+    <small>Copie o prompt para o seu Claude ou ChatGPT e cole a resposta abaixo.</small>
+    <textarea id="promptP" readonly></textarea>
+    <div><button id="copyP">Copiar prompt</button></div>
+    <textarea id="respP" placeholder="Cole aqui a resposta do pedidor"></textarea>
+    <div><button id="enviarP">Registrar pedido</button></div>
+  </section>
+
+  <section id="secR">
+    <h2>Produtor</h2>
+    <small>Só libera depois que o pedidor registrar um pedido.</small>
+    <textarea id="promptR" readonly></textarea>
+    <div><button id="copyR">Copiar prompt</button></div>
+    <textarea id="respR" placeholder="Cole aqui a entrega do produtor"></textarea>
+    <div><button id="enviarR">Registrar entrega</button></div>
+  </section>
+
+  <div class="log">
+    <h2>Histórico</h2>
+    <div id="log"><small>Nada registrado ainda.</small></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var KEY = 'pp-estado-v1';
+  var estado = { tema: 'Rondônia: dados técnicos do jogo', criterios: '', max: 5, turno: 'pedidor', rodada: 1, concluido: false, historico: [] };
+  try { var salvo = JSON.parse(localStorage.getItem(KEY) || 'null'); if (salvo) estado = salvo; } catch (e) {}
+  if (!estado.criterios) {
+    estado.criterios = [
+      'Cada número tem fonte ou está marcado como [estimado]',
+      'Os dados do jogo batem com o que já foi definido no projeto',
+      'Tabelas e listas têm unidades e nomes consistentes',
+      'Sem trechos vagos ou com "etc."'
+    ].join('\n');
+  }
+
+  function salvar() { try { localStorage.setItem(KEY, JSON.stringify(estado)); } catch (e) {} }
+  function ultimo(quem) {
+    for (var i = estado.historico.length - 1; i >= 0; i--) {
+      if (estado.historico[i].quem === quem) return estado.historico[i].texto;
+    }
+    return '(nenhum ainda)';
+  }
+  function promptPedidor() {
+    return 'Você é o PEDIDOR de um livro técnico sobre: ' + estado.tema + '.\n\n' +
+      'Critérios de aceite:\n' + estado.criterios + '\n\n' +
+      'Última entrega do produtor:\n' + ultimo('produtor') + '\n\n' +
+      'Escreva o próximo pedido: qual seção, quais dados, formato e o que precisa mudar. ' +
+      'Se a última entrega atende TODOS os critérios, responda apenas com a palavra PERFEITO e o motivo em uma linha.';
+  }
+  function promptProdutor() {
+    return 'Você é o PRODUTOR do livro técnico sobre: ' + estado.tema + '.\n\n' +
+      'Pedido atual do pedidor:\n' + ultimo('pedidor') + '\n\n' +
+      'Entregue a seção pedida em Markdown, com dados concretos. ' +
+      'Marque cada dado como [verificado] (com fonte) ou [estimado]. Não invente números.';
+  }
+
+  function render() {
+    document.getElementById('tema').value = estado.tema;
+    document.getElementById('criterios').value = estado.criterios;
+    document.getElementById('max').value = estado.max;
+    document.getElementById('rodada').textContent = 'Rodada ' + estado.rodada + ' de ' + estado.max;
+
+    var ehP = estado.turno === 'pedidor' && !estado.concluido;
+    var ehR = estado.turno === 'produtor' && !estado.concluido;
+    document.getElementById('secP').className = ehP ? 'ativo' : '';
+    document.getElementById('secR').className = ehR ? 'ativo' : '';
+    document.getElementById('promptP').value = promptPedidor();
+    document.getElementById('promptR').value = promptProdutor();
+    document.getElementById('enviarP').disabled = !ehP;
+    document.getElementById('enviarR').disabled = !ehR;
+    document.getElementById('copyP').disabled = !ehP;
+    document.getElementById('copyR').disabled = !ehR;
+
+    var st = estado.concluido ? 'concluído (PERFEITO)' : (estado.rodada > estado.max ? 'limite de rodadas atingido' : 'em andamento, vez do ' + (estado.turno === 'pedidor' ? 'pedidor' : 'produtor'));
+    document.getElementById('status').textContent = st;
+
+    var log = document.getElementById('log');
+    log.textContent = '';
+    if (!estado.historico.length) {
+      var vazio = document.createElement('small');
+      vazio.textContent = 'Nada registrado ainda.';
+      log.appendChild(vazio);
+    }
+    estado.historico.forEach(function (h) {
+      var d = document.createElement('div');
+      d.className = 'entrada ' + h.quem;
+      d.textContent = '[rodada ' + h.rodada + '] ' + (h.quem === 'pedidor' ? 'Pedidor' : 'Produtor') + ':\n' + h.texto;
+      log.appendChild(d);
+    });
+  }
+
+  function copiar(id) {
+    var t = document.getElementById(id).value;
+    if (navigator.clipboard) navigator.clipboard.writeText(t).catch(function () {});
+    else { var a = document.getElementById(id); a.select(); document.execCommand('copy'); }
+  }
+
+  document.getElementById('copyP').onclick = function () { copiar('promptP'); };
+  document.getElementById('copyR').onclick = function () { copiar('promptR'); };
+
+  document.getElementById('enviarP').onclick = function () {
+    var txt = document.getElementById('respP').value.trim();
+    if (!txt) return;
+    estado.historico.push({ quem: 'pedidor', rodada: estado.rodada, texto: txt });
+    document.getElementById('respP').value = '';
+    if (/^\s*PERFEITO/i.test(txt)) estado.concluido = true;
+    else estado.turno = 'produtor';
+    salvar(); render();
+  };
+
+  document.getElementById('enviarR').onclick = function () {
+    var txt = document.getElementById('respR').value.trim();
+    if (!txt) return;
+    estado.historico.push({ quem: 'produtor', rodada: estado.rodada, texto: txt });
+    document.getElementById('respR').value = '';
+    estado.turno = 'pedidor';
+    estado.rodada += 1;
+    if (estado.rodada > estado.max) estado.concluido = true;
+    salvar(); render();
+  };
+
+  document.getElementById('zerar').onclick = function () {
+    if (!confirm('Apagar o histórico e recomeçar na rodada 1?')) return;
+    estado.historico = []; estado.turno = 'pedidor'; estado.rodada = 1; estado.concluido = false;
+    salvar(); render();
+  };
+
+  document.getElementById('exportar').onclick = function () {
+    var md = '# ' + estado.tema + '\n\n';
+    estado.historico.forEach(function (h) {
+      md += '## Rodada ' + h.rodada + ' · ' + (h.quem === 'pedidor' ? 'Pedidor' : 'Produtor') + '\n\n' + h.texto + '\n\n';
+    });
+    var blob = new Blob([md], { type: 'text/markdown' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'livro-tecnico.md';
+    a.click();
+  };
+
+  document.getElementById('tema').onchange = function () { estado.tema = this.value; salvar(); render(); };
+  document.getElementById('criterios').onchange = function () { estado.criterios = this.value; salvar(); render(); };
+  document.getElementById('max').onchange = function () { estado.max = Math.max(1, parseInt(this.value, 10) || 5); salvar(); render(); };
+
+  render();
+})();
+</script>
+</body>
+</html>
