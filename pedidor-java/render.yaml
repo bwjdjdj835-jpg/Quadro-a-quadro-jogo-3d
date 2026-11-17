@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pedidor-produtor
+    runtime: docker
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: DADOS
+        value: /data/estado.xml
+    disk:
+      name: dados
+      mountPath: /data
+      sizeGB: 1
